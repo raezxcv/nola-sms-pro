@@ -416,9 +416,9 @@ export const Composer: React.FC<ComposerProps> = ({ selectedContacts, isNewMessa
 
       {/* 2. Message History Area */}
       <div className="flex-1 overflow-y-auto px-6 py-4 space-y-1 flex flex-col custom-scrollbar">
-        <div className="max-w-5xl mx-auto w-full">
+        <div className="max-w-5xl mx-auto w-full h-full flex flex-col">
         {messages.length === 0 ? (
-          <div className="flex-1 flex flex-col items-center justify-center opacity-0 animate-fade-in transition-opacity duration-700" style={{ animationDelay: '200ms', opacity: 1 }}>
+          <div className="flex-1 flex flex-col items-center justify-center">
             <div className="w-24 h-24 mb-6 rounded-[2.5rem] bg-gradient-to-br from-[#2b83fa]/10 to-[#60a5fa]/5 dark:from-[#2b83fa]/20 dark:to-[#60a5fa]/5 flex items-center justify-center border border-[#2b83fa]/10 dark:border-[#2b83fa]/20 shadow-inner">
               <svg xmlns="http://www.w3.org/2000/svg" className="h-10 w-10 text-[#2b83fa]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
