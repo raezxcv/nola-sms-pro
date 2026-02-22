@@ -177,7 +177,12 @@ export const Sidebar: React.FC<SidebarProps> = ({
                       ? 'bg-[#2b83fa] text-white shadow-[0_4px_8px_rgba(43,131,250,0.2)]'
                       : 'bg-[#f0f0f0] dark:bg-[#202123] text-[#6e6e73] dark:text-[#ececf1] group-hover:bg-[#e8e8e8] dark:group-hover:bg-[#25262a]'}
                   `}>
-                    {contact.name.charAt(0).toUpperCase()}
+                    {(() => {
+                      const parts = contact.name.trim().split(/\s+/);
+                      const firstInitial = parts[0]?.charAt(0) || '';
+                      const lastInitial = parts.length > 1 ? parts[parts.length - 1].charAt(0) : '';
+                      return (firstInitial + lastInitial).toUpperCase();
+                    })()}
                   </div>
                   {!isCollapsed && (
                     <span className={`absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 rounded-full border-2 border-white dark:border-[#121415] shadow-sm transition-opacity duration-300

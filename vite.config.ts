@@ -56,7 +56,7 @@ const smsProxyPlugin = () => ({
       }
     });
 
-    server.middlewares.use('/api/contacts', (req, res) => {
+    server.middlewares.use('/api/contacts', (_req, res) => {
       const mockContacts = [
         { id: '1', name: 'Raely Ivan Reyes', phone: '0976 176 1036' },
         { id: '2', name: 'David Monzon', phone: '0970 812 9927' },
