@@ -12,12 +12,12 @@ const smsProxyPlugin = () => ({
         req.on('data', chunk => {
           body += chunk.toString();
         });
-        
+
         req.on('end', async () => {
           // Parse the form data
           const params = new URLSearchParams(body);
           let number = params.get('number') || '';
-          
+
           // Format Philippine phone numbers - the webhook expects 09xxxxxxxxx format
           // It will convert +63 to 0 internally
           if (number.startsWith('+63')) {
@@ -29,13 +29,13 @@ const smsProxyPlugin = () => ({
           } else if (number.startsWith('9') && number.length === 10) {
             number = '0' + number;
           }
-          
+
           // Rebuild the body with the customData wrapper
           const newBody = new URLSearchParams();
           newBody.append('customData[number]', number);
           newBody.append('customData[message]', params.get('message') || '');
           newBody.append('customData[sendername]', params.get('sendername') || 'NOLACRM');
-          
+
           try {
             const response = await fetch('https://webhooks.nolacrm.io/webhook/send_sms.php', {
               method: 'POST',
@@ -44,7 +44,7 @@ const smsProxyPlugin = () => ({
               },
               body: newBody.toString(),
             });
-            
+
             const data = await response.json();
             res.setHeader('Content-Type', 'application/json');
             res.end(JSON.stringify(data));
@@ -53,10 +53,19 @@ const smsProxyPlugin = () => ({
             res.end(JSON.stringify({ status: 'error', message: 'Failed to send SMS' }));
           }
         });
-      } else {
-        res.statusCode = 405;
-        res.end('Method not allowed');
       }
+    });
+
+    server.middlewares.use('/api/contacts', (req, res) => {
+      const mockContacts = [
+        { id: '1', name: 'Raely Ivan Reyes', phone: '0976 176 1036' },
+        { id: '2', name: 'David Monzon', phone: '0970 812 9927' },
+        { id: '3', name: 'Nola Support', phone: '09987654321' },
+        { id: '4', name: 'John Doe', phone: '09223334445' },
+        { id: '5', name: 'Jane Smith', phone: '09556667778' },
+      ];
+      res.setHeader('Content-Type', 'application/json');
+      res.end(JSON.stringify(mockContacts));
     });
   },
 });

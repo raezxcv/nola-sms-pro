@@ -46,7 +46,7 @@ const App: React.FC = () => {
           </svg>
         )}
       </button>
-      
+
       <Dashboard />
     </div>
   );

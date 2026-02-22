@@ -1,71 +1,132 @@
 import { useState } from "react";
-import type{ Contact } from "../types/Contact";
+import type { Contact } from "../types/Contact";
 import { Sidebar } from "../components/Sidebar";
+import type { ViewTab } from "../components/Sidebar";
 import { Composer } from "../components/Composer";
-
-type View = 'compose' | 'conversation';
+import { TbLayoutSidebarRightCollapse } from "react-icons/tb";
+import { FiMenu } from "react-icons/fi";
 
 export const Dashboard: React.FC = () => {
   const [selectedContacts, setSelectedContacts] = useState<Contact[]>([]);
-  const [sidebarOpen, setSidebarOpen] = useState(true);
-  const [currentView, setCurrentView] = useState<View>('compose');
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [currentView, setCurrentView] = useState<ViewTab>('compose');
   const [activeContact, setActiveContact] = useState<Contact | null>(null);
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
 
-  const handleSelect = (contact: Contact) => {
+  const handleSelectContact = (contact: Contact) => {
     setSelectedContacts([contact]);
     setActiveContact(contact);
-    setCurrentView('conversation');
-  };
-
-  const handleNewMessage = () => {
-    setSelectedContacts([]);
-    setActiveContact(null);
     setCurrentView('compose');
   };
 
-  const toggleSidebar = () => {
-    setSidebarOpen(!sidebarOpen);
+  const handleTabChange = (tab: ViewTab) => {
+    setCurrentView(tab);
+    if (tab === 'compose') {
+      setSelectedContacts([]);
+      setActiveContact(null);
+    }
+    // On mobile, close sidebar when selecting a main action area
+    if (window.innerWidth < 768 && tab !== 'compose') {
+      setIsMobileMenuOpen(false);
+    }
+  };
+
+  const toggleMobileMenu = () => {
+    setIsMobileMenuOpen(!isMobileMenuOpen);
+  };
+
+  const toggleCollapse = () => {
+    setIsSidebarCollapsed(!isSidebarCollapsed);
   };
 
   return (
     <div className="flex h-screen bg-[#ffffff] dark:bg-[#202123] overflow-hidden">
       {/* Sidebar - Left */}
       <div className={`
-        fixed md:relative z-40 h-full transition-all duration-300 ease-in-out
-        ${sidebarOpen ? 'w-80' : 'w-0 md:w-0'}
+        fixed md:relative z-50 h-full transition-all duration-300 ease-in-out
+        ${isMobileMenuOpen ? 'w-80 border-r border-[#0000001a] dark:border-[#ffffff1a]' : 'w-0 md:w-auto'}
+        ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}
         overflow-hidden
       `}>
-        <Sidebar onSelect={handleSelect} onNewMessage={handleNewMessage} />
+        <div className={`h-full transition-all duration-300 ${isSidebarCollapsed ? 'md:w-20' : 'md:w-80 w-80'}`}>
+          <Sidebar
+            activeTab={currentView}
+            onTabChange={handleTabChange}
+            onSelectContact={handleSelectContact}
+            activeContactId={activeContact?.id}
+            isCollapsed={isSidebarCollapsed}
+            onToggleCollapse={toggleCollapse}
+          />
+        </div>
       </div>
 
-      {/* Main Content - Composer */}
-      <div className="flex-1 flex flex-col h-full w-full min-w-0">
+      {/* Main Content Area */}
+      <div className="flex-1 flex flex-col h-full w-full min-w-0 bg-[#f7f7f7] dark:bg-[#18191d]">
         {/* Mobile Header with Sidebar Toggle */}
-        <div className="md:hidden flex items-center justify-between p-3 border-b border-[#e5e5e5] dark:border-[#2a2b32] bg-[#ffffff] dark:bg-[#202123]">
+        <div className="md:hidden flex items-center justify-between p-3 border-b border-[#e5e5e5] dark:border-[#2a2b32] bg-[#ffffff] dark:bg-[#202123] sticky top-0 z-30">
           <button
-            onClick={toggleSidebar}
-            className="p-2 rounded-lg hover:bg-[#f7f7f7] dark:hover:bg-[#2a2b32] text-[#37352f] dark:text-[#ececf1]"
+            onClick={toggleMobileMenu}
+            className="p-2 rounded-lg hover:bg-[#f7f7f7] dark:hover:bg-[#2a2b32] text-[#37352f] dark:text-[#ececf1] transition-colors"
           >
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
-            </svg>
+            <FiMenu className="h-5 w-5" />
           </button>
-          <span className="font-medium text-[#37352f] dark:text-[#ececf1]">NOLA SMS Pro</span>
+          <span className="font-semibold text-[#37352f] dark:text-[#ececf1] tracking-tight">NOLA SMS Pro</span>
           <div className="w-8" />
         </div>
-        
-        <Composer 
-          selectedContacts={selectedContacts} 
-          isNewMessage={currentView === 'compose'}
-          activeContact={activeContact}
-        />
+
+        {/* ChatGPT Style Expand Toggle for Desktop */}
+        {isSidebarCollapsed && (
+          <div className="hidden md:flex absolute top-4 left-4 z-40">
+            <button
+              onClick={toggleCollapse}
+              className="p-2.5 rounded-xl bg-white/50 dark:bg-[#202123]/50 backdrop-blur-md border border-[#0000000a] dark:border-[#ffffff0a] text-gray-500 hover:text-[#2b83fa] shadow-sm transition-all hover:scale-110 active:scale-95 group"
+              title="Expand Sidebar"
+            >
+              <TbLayoutSidebarRightCollapse className="h-5 w-5 transition-transform group-hover:translate-x-0.5" />
+            </button>
+          </div>
+        )}
+
+        {/* Content Router */}
+        <div className="flex-1 h-full overflow-hidden">
+          {currentView === 'compose' ? (
+            <Composer
+              selectedContacts={selectedContacts}
+              isNewMessage={currentView === 'compose'}
+              activeContact={activeContact}
+            />
+          ) : (
+            <div className="h-full flex flex-col items-center justify-center p-8 text-center bg-white/50 dark:bg-[#202123]/50 backdrop-blur-sm">
+              <div className="w-20 h-20 mb-6 rounded-2xl bg-gradient-to-br from-[#2b83fa]/20 to-[#60a5fa]/20 dark:from-[#2b83fa]/10 dark:to-[#60a5fa]/10 flex items-center justify-center border border-[#2b83fa]/20">
+                {currentView === 'contacts' ? (
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-10 w-10 text-[#2b83fa]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15 19.128a9.38 9.38 0 002.625.372 9.337 9.337 0 004.121-.952 4.125 4.125 0 00-7.533-2.493M15 19.128v-.003c0-1.113-.285-2.16-.786-3.07M15 19.128v.106A12.318 12.318 0 018.624 21c-2.331 0-4.512-.645-6.374-1.766l-.001-.109a6.375 6.375 0 0111.964-3.07M12 6.375a3.375 3.375 0 11-6.75 0 3.375 3.375 0 016.75 0zm8.25 2.25a2.625 2.625 0 11-5.25 0 2.625 2.625 0 015.25 0z" />
+                  </svg>
+                ) : currentView === 'templates' ? (
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-10 w-10 text-[#2b83fa]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M16.5 8.25V6a2.25 2.25 0 00-2.25-2.25H6A2.25 2.25 0 003.75 6v8.25A2.25 2.25 0 006 16.5h2.25m8.25-8.25H18a2.25 2.25 0 012.25 2.25V18A2.25 2.25 0 0118 20.25h-7.5A2.25 2.25 0 018.25 18v-1.5m8.25-8.25h-6a2.25 2.25 0 00-2.25 2.25v6" />
+                  </svg>
+                ) : (
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-10 w-10 text-[#2b83fa]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                  </svg>
+                )}
+              </div>
+              <h2 className="text-2xl font-bold text-[#37352f] dark:text-[#ececf1] mb-2 tracking-tight capitalize">{currentView} Module</h2>
+              <p className="text-[#6e6e73] dark:text-[#a0a0ab] max-w-sm text-[15px]">
+                This section is currently under construction. Please check back later for updates to the CRM capabilities.
+              </p>
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Mobile Overlay */}
-      {sidebarOpen && (
-        <div 
-          className="fixed inset-0 bg-black/30 z-30 md:hidden"
-          onClick={() => setSidebarOpen(false)}
+      {isMobileMenuOpen && (
+        <div
+          className="fixed inset-0 bg-black/40 backdrop-blur-sm z-[45] md:hidden transition-opacity"
+          onClick={() => setIsMobileMenuOpen(false)}
         />
       )}
     </div>
