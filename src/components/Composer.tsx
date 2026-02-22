@@ -14,12 +14,15 @@ interface SentMessage {
   id: string;
   text: string;
   timestamp: Date;
+  senderName: string;
+  status: 'sending' | 'sent' | 'delivered' | 'failed';
 }
 
 export const Composer: React.FC<ComposerProps> = ({ selectedContacts, isNewMessage = true, activeContact }) => {
   const [message, setMessage] = useState("");
   const [loading, setLoading] = useState(false);
   const [messages, setMessages] = useState<SentMessage[]>([]);
+  const [expandedMessageId, setExpandedMessageId] = useState<string | null>(null);
 
   // Single SMS state
 
@@ -178,6 +181,8 @@ export const Composer: React.FC<ComposerProps> = ({ selectedContacts, isNewMessa
         id: Date.now().toString(),
         text: message,
         timestamp: new Date(),
+        senderName: 'NOLACRM',
+        status: 'sent',
       };
       setMessages(prev => [...prev, newMessage]);
 
@@ -376,7 +381,12 @@ export const Composer: React.FC<ComposerProps> = ({ selectedContacts, isNewMessa
                               >
                                 <div className="flex items-center gap-3 min-w-0">
                                   <div className={`w-8 h-8 rounded-full flex items-center justify-center text-[11px] font-bold ${isSelected ? "bg-[#2b83fa] text-white" : "bg-gray-200 dark:bg-white/10 text-gray-600 dark:text-gray-400"}`}>
-                                    {contact.name.charAt(0).toUpperCase()}
+                                    {(() => {
+                                      const parts = contact.name.split(' ').filter(p => p.length > 0);
+                                      const first = parts[0]?.charAt(0) || '';
+                                      const last = parts[1]?.charAt(0) || '';
+                                      return (first + last).toUpperCase() || '?';
+                                    })()}
                                   </div>
                                   <div className="min-w-0">
                                     <p className="font-semibold text-[13px] text-[#111111] dark:text-[#ececf1] truncate">{contact.name}</p>
@@ -405,7 +415,8 @@ export const Composer: React.FC<ComposerProps> = ({ selectedContacts, isNewMessa
       </div>
 
       {/* 2. Message History Area */}
-      <div className="flex-1 overflow-y-auto px-6 py-6 space-y-6 flex flex-col custom-scrollbar">
+      <div className="flex-1 overflow-y-auto px-6 py-4 space-y-1 flex flex-col custom-scrollbar">
+        <div className="max-w-5xl mx-auto w-full">
         {messages.length === 0 ? (
           <div className="flex-1 flex flex-col items-center justify-center opacity-0 animate-fade-in transition-opacity duration-700" style={{ animationDelay: '200ms', opacity: 1 }}>
             <div className="w-24 h-24 mb-6 rounded-[2.5rem] bg-gradient-to-br from-[#2b83fa]/10 to-[#60a5fa]/5 dark:from-[#2b83fa]/20 dark:to-[#60a5fa]/5 flex items-center justify-center border border-[#2b83fa]/10 dark:border-[#2b83fa]/20 shadow-inner">
@@ -423,22 +434,52 @@ export const Composer: React.FC<ComposerProps> = ({ selectedContacts, isNewMessa
             </p>
           </div>
         ) : (
-          messages.map((msg) => (
-            <div key={msg.id} className="flex justify-end group">
-              <div className="max-w-[80%] flex flex-col items-end">
-                <div className="bg-[#2b83fa] dark:bg-[#2b83fa]/90 text-white rounded-[1.25rem] rounded-tr-md px-4 py-3 shadow-lg shadow-blue-500/10 transition-transform group-hover:scale-[1.01]">
-                  <p className="text-[14.5px] leading-relaxed whitespace-pre-wrap">{msg.text}</p>
+          <>
+            {messages.map((msg, index) => {
+              const isExpanded = expandedMessageId === msg.id;
+              const isLastMessage = index === messages.length - 1;
+              const prevMsg = messages[index - 1];
+              const showDateSeparator = !prevMsg || new Date(msg.timestamp).toDateString() !== new Date(prevMsg.timestamp).toDateString();
+              const isFirstInGroup = showDateSeparator;
+              
+              return (
+                <div key={msg.id}>
+                  {showDateSeparator && (
+                    <div className="w-full flex items-center justify-center my-4">
+                      <span className="px-3 py-1 bg-gray-100 dark:bg-white/10 rounded-full text-[11px] font-medium text-gray-500 dark:text-gray-400">
+                        {new Date(msg.timestamp).toLocaleDateString([], { weekday: 'long', month: 'short', day: 'numeric' })}
+                      </span>
+                    </div>
+                  )}
+                  <div 
+                    className="flex flex-col justify-end items-end group mb-1 cursor-pointer w-full"
+                    onClick={() => setExpandedMessageId(isExpanded ? null : msg.id)}
+                  >
+                    <div className={`bg-gradient-to-r from-[#2b83fa] to-[#1d6bd4] text-white px-4 py-2.5 shadow-lg shadow-blue-500/10 transition-transform group-hover:scale-[1.01] ${isLastMessage ? 'rounded-[1.25rem] rounded-tr-md' : isFirstInGroup ? 'rounded-[1.25rem] rounded-br-md' : 'rounded-[1.25rem] rounded-tr-md rounded-br-md'}`}>
+                      <p className="text-[14.5px] leading-relaxed whitespace-pre-wrap">{msg.text}</p>
+                    </div>
+                    {isExpanded && (
+                      <div className="flex items-center gap-2 mt-3 px-1">
+                        <span className="text-[10px] font-semibold text-gray-500 dark:text-gray-400">
+                          {msg.senderName}
+                        </span>
+                        <span className="text-[10px] text-gray-400">•</span>
+                        <span className="text-[10px] text-gray-500 dark:text-gray-400 font-medium">
+                          {msg.timestamp.toLocaleDateString([], { month: 'short', day: 'numeric' })} {msg.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                        </span>
+                        <span className="text-[10px] text-gray-400">•</span>
+                        <span className={`text-[10px] font-bold uppercase tracking-wider ${msg.status === 'sent' ? 'text-green-500' : msg.status === 'delivered' ? 'text-blue-400' : msg.status === 'failed' ? 'text-red-500' : 'text-gray-400'}`}>
+                          {msg.status === 'sending' ? '⟳' : msg.status === 'sent' ? '✓' : msg.status === 'delivered' ? '✓✓' : '✗'} {msg.status}
+                        </span>
+                      </div>
+                    )}
+                  </div>
                 </div>
-                <div className="flex items-center gap-1.5 mt-2 px-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                  <span className="text-[10px] font-bold text-gray-400 uppercase tracking-tighter">Sent</span>
-                  <span className="text-[10px] text-gray-400 font-medium">
-                    {msg.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                  </span>
-                </div>
-              </div>
-            </div>
-          ))
+              );
+            })}
+          </>
         )}
+        </div>
         <div ref={messagesEndRef} />
       </div>
 

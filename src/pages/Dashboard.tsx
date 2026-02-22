@@ -6,12 +6,18 @@ import { Composer } from "../components/Composer";
 import { TbLayoutSidebarRightCollapse } from "react-icons/tb";
 import { FiMenu } from "react-icons/fi";
 
-export const Dashboard: React.FC = () => {
+interface DashboardProps {
+  isMobileMenuOpen?: boolean;
+  onMobileMenuToggle?: () => void;
+}
+
+export const Dashboard: React.FC<DashboardProps> = ({ isMobileMenuOpen: externalIsMobileMenuOpen, onMobileMenuToggle }) => {
   const [selectedContacts, setSelectedContacts] = useState<Contact[]>([]);
-  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [currentView, setCurrentView] = useState<ViewTab>('compose');
   const [activeContact, setActiveContact] = useState<Contact | null>(null);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
+
+  const isMobileMenuOpen = externalIsMobileMenuOpen !== undefined ? externalIsMobileMenuOpen : false;
 
   const handleSelectContact = (contact: Contact) => {
     setSelectedContacts([contact]);
@@ -26,13 +32,15 @@ export const Dashboard: React.FC = () => {
       setActiveContact(null);
     }
     // On mobile, close sidebar when selecting a main action area
-    if (window.innerWidth < 768 && tab !== 'compose') {
-      setIsMobileMenuOpen(false);
+    if (window.innerWidth < 768 && tab !== 'compose' && onMobileMenuToggle) {
+      onMobileMenuToggle();
     }
   };
 
   const toggleMobileMenu = () => {
-    setIsMobileMenuOpen(!isMobileMenuOpen);
+    if (onMobileMenuToggle) {
+      onMobileMenuToggle();
+    }
   };
 
   const toggleCollapse = () => {
@@ -126,7 +134,7 @@ export const Dashboard: React.FC = () => {
       {isMobileMenuOpen && (
         <div
           className="fixed inset-0 bg-black/40 backdrop-blur-sm z-[45] md:hidden transition-opacity"
-          onClick={() => setIsMobileMenuOpen(false)}
+          onClick={toggleMobileMenu}
         />
       )}
     </div>
