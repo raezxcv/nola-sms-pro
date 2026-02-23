@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect, useMemo } from "react";
+import { Snackbar, Alert } from "@mui/material";
 import { sendSms, sendBulkSms } from "../api/sms";
 import { fetchContacts } from "../api/contacts";
 import type { Contact } from "../types/Contact";
@@ -678,6 +679,21 @@ export const Composer: React.FC<ComposerProps> = ({ selectedContacts, isNewMessa
       </div>
 
       {/* 4. Toast Overlay */}
+      <Snackbar
+        open={toastOpen}
+        autoHideDuration={6000}
+        onClose={() => setToastOpen(false)}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+      >
+        <Alert
+          onClose={() => setToastOpen(false)}
+          severity={toastSeverity}
+          variant="filled"
+          sx={{ width: '100%' }}
+        >
+          {toastMessage}
+        </Alert>
+      </Snackbar>
     </div>
   );
 };
