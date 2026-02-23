@@ -32,12 +32,10 @@ const App: React.FC = () => {
 
   return (
     <div className="h-screen">
-      {/* Theme Toggle - Fixed top right */}
+      {/* Theme Toggle - Fixed top right (Desktop only) */}
       <button
         onClick={toggleDarkMode}
-        className={`fixed top-3 right-3 p-2 rounded-lg bg-[#f7f7f7] dark:bg-[#2a2b32] hover:bg-[#e8e8e8] dark:hover:bg-[#3a3b3f] text-[#37352f] dark:text-[#ececf1] shadow-sm transition-all duration-200 ${
-          isMobileMenuOpen ? 'z-[40] backdrop-blur-md bg-white/80 dark:bg-[#2a2b32]/80 pointer-events-none' : 'z-50'
-        }`}
+        className={`hidden md:block fixed top-3 right-3 p-2 rounded-lg bg-[#f7f7f7] dark:bg-[#2a2b32] hover:bg-[#e8e8e8] dark:hover:bg-[#3a3b3f] text-[#37352f] dark:text-[#ececf1] shadow-sm transition-all duration-200 z-50`}
         aria-label="Toggle theme"
       >
         {darkMode ? (
@@ -53,7 +51,9 @@ const App: React.FC = () => {
 
       <Dashboard 
         isMobileMenuOpen={isMobileMenuOpen} 
-        onMobileMenuToggle={() => setIsMobileMenuOpen(!isMobileMenuOpen)} 
+        onMobileMenuToggle={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+        darkMode={darkMode}
+        toggleDarkMode={toggleDarkMode}
       />
     </div>
   );
