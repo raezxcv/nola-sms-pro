@@ -3,6 +3,7 @@ import { sendSms, sendBulkSms } from "../api/sms";
 import { fetchContacts } from "../api/contacts";
 import type { Contact } from "../types/Contact";
 import { Snackbar, Alert } from "@mui/material";
+import { FiUser, FiUsers } from "react-icons/fi";
 
 interface ComposerProps {
   selectedContacts: Contact[];
@@ -276,20 +277,22 @@ export const Composer: React.FC<ComposerProps> = ({ selectedContacts, isNewMessa
               <div className="flex p-0.5 bg-gray-100 dark:bg-white/5 rounded-xl border border-gray-200/50 dark:border-white/5">
                 <button
                   onClick={() => setComposeMode("single")}
-                  className={`px-3.5 py-1 text-[11px] font-bold uppercase tracking-wider rounded-lg transition-all duration-200 ${composeMode === "single"
+                  className={`flex items-center gap-1.5 px-3.5 py-1 text-[11px] font-bold uppercase tracking-wider rounded-lg transition-all duration-200 ${composeMode === "single"
                     ? "bg-white dark:bg-[#2a2b32] text-[#2b83fa] shadow-sm"
                     : "text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
                     }`}
                 >
+                  <FiUser className="h-3.5 w-3.5" />
                   Single
                 </button>
                 <button
                   onClick={() => setComposeMode("bulk")}
-                  className={`px-3.5 py-1 text-[11px] font-bold uppercase tracking-wider rounded-lg transition-all duration-200 ${composeMode === "bulk"
+                  className={`flex items-center gap-1.5 px-3.5 py-1 text-[11px] font-bold uppercase tracking-wider rounded-lg transition-all duration-200 ${composeMode === "bulk"
                     ? "bg-white dark:bg-[#2a2b32] text-[#2b83fa] shadow-sm"
                     : "text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
                     }`}
                 >
+                  <FiUsers className="h-3.5 w-3.5" />
                   Bulk
                 </button>
               </div>
