@@ -63,6 +63,14 @@ export const Composer: React.FC<ComposerProps> = ({ selectedContacts, isNewMessa
     }
   }, [activeContact]);
 
+  // Reset bulkSelectedContacts when switching from bulk to single mode
+  useEffect(() => {
+    if (composeMode === "single" && bulkSelectedContacts.length > 1) {
+      // Keep only the first contact when switching to single mode
+      setBulkSelectedContacts(bulkSelectedContacts.slice(0, 1));
+    }
+  }, [composeMode]);
+
   useEffect(() => {
     if (isNewMessage) {
       fetchContacts().then(setAllContacts).catch(console.error);
