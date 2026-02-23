@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useMemo } from "react";
-import { Snackbar, Alert } from "@mui/material";
+import { Snackbar, Alert, Slide } from "@mui/material";
 import { sendSms, sendBulkSms } from "../api/sms";
 import { fetchContacts } from "../api/contacts";
 import type { Contact } from "../types/Contact";
@@ -717,36 +717,72 @@ export const Composer: React.FC<ComposerProps> = ({ selectedContacts, isNewMessa
         </div>
       </div>
 
-      {/* 4. Toast Overlay - subtle notification above textbox */}
+      {/* 4. Toast Overlay */}
       <Snackbar
         open={toastOpen}
-        autoHideDuration={4000}
+        autoHideDuration={2500}
         onClose={() => setToastOpen(false)}
-        anchorOrigin={{ vertical: 'top', horizontal: 'center' }}
-        sx={{ 
-          top: '50% !important',
-          '& .MuiSnackbar-root': { 
-            transform: 'translateY(-50%)' 
-          }
-        }}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+        TransitionComponent={(props) => <Slide {...props} direction="up" />}
+        transitionDuration={300}
       >
         <Alert
           onClose={() => setToastOpen(false)}
           severity={toastSeverity}
-          variant="filled"
-          sx={{ 
-            width: '100%',
-            minWidth: '280px',
-            maxWidth: '400px',
-            borderRadius: '12px',
-            fontSize: '0.875rem',
+          sx={{
+            // Minimal capsule glassmorphism
+            backdropFilter: 'blur(16px)',
+            WebkitBackdropFilter: 'blur(16px)',
+            borderRadius: '9999px',
+            px: 2.5,
+            py: 1,
+            fontSize: '0.85rem',
             fontWeight: 500,
-            boxShadow: '0 4px 20px rgba(0,0,0,0.15)',
-            opacity: 0.95,
+            minWidth: 'auto',
+            // Light mode glass effect
+            background: toastSeverity === 'success' 
+              ? 'linear-gradient(135deg, rgba(255, 255, 255, 0.75) 0%, rgba(255, 255, 255, 0.55) 100%)'
+              : 'linear-gradient(135deg, rgba(255, 255, 255, 0.75) 0%, rgba(255, 255, 255, 0.55) 100%)',
+            border: '1px solid rgba(255, 255, 255, 0.4)',
+            boxShadow: '0 4px 20px rgba(0, 0, 0, 0.08), inset 0 1px 0 rgba(255, 255, 255, 0.5)',
+            color: '#1f2937',
+            alignItems: 'center',
+            justifyContent: 'center',
             '& .MuiAlert-icon': {
-              fontSize: '1.25rem',
-            }
+              color: toastSeverity === 'success' ? '#059669' : '#dc2626',
+              mr: 1,
+              fontSize: '1.1rem',
+            },
+            '& .MuiAlert-message': {
+              py: 0,
+            },
+            '& .MuiAlert-action': {
+              color: '#6b7280',
+              pl: 1,
+              '&:hover': {
+                backgroundColor: 'rgba(0, 0, 0, 0.05)',
+              },
+            },
+            // Dark mode glassmorphism
+            '&.dark, .dark &': {
+              background: toastSeverity === 'success'
+                ? 'linear-gradient(135deg, rgba(30, 30, 35, 0.8) 0%, rgba(20, 20, 25, 0.85) 100%)'
+                : 'linear-gradient(135deg, rgba(30, 30, 35, 0.8) 0%, rgba(20, 20, 25, 0.85) 100%)',
+              border: '1px solid rgba(255, 255, 255, 0.08)',
+              boxShadow: '0 4px 20px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.05)',
+              color: '#f3f4f6',
+              '& .MuiAlert-icon': {
+                color: toastSeverity === 'success' ? '#34d399' : '#f87171',
+              },
+              '& .MuiAlert-action': {
+                color: '#9ca3af',
+                '&:hover': {
+                  backgroundColor: 'rgba(255, 255, 255, 0.08)',
+                },
+              },
+            },
           }}
+          variant="filled"
         >
           {toastMessage}
         </Alert>

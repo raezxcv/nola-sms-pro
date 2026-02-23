@@ -114,7 +114,7 @@ export const ContactsTab: React.FC<ContactsTabProps> = ({ onSendToComposer }) =>
   }
 
   return (
-    <div className="flex flex-col h-full bg-[#f7f7f7] dark:bg-[#18191d]">
+    <div className="flex flex-col h-full bg-[#f7f7f7] dark:bg-[#111111]">
       {/* Header */}
       <div className="flex-shrink-0 bg-white/80 dark:bg-[#1a1b1e]/80 backdrop-blur-xl border-b border-gray-200/60 dark:border-white/5 shadow-sm">
         <div className="max-w-5xl mx-auto px-3 md:px-6 py-4">
