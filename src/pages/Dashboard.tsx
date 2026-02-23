@@ -3,6 +3,7 @@ import type { Contact } from "../types/Contact";
 import { Sidebar } from "../components/Sidebar";
 import type { ViewTab } from "../components/Sidebar";
 import { Composer } from "../components/Composer";
+import { ContactsTab } from "../components/ContactsTab";
 import { TbLayoutSidebarRightCollapse } from "react-icons/tb";
 import { FiMenu } from "react-icons/fi";
 
@@ -24,6 +25,16 @@ export const Dashboard: React.FC<DashboardProps> = ({ isMobileMenuOpen: external
   const handleSelectContact = (contact: Contact) => {
     setSelectedContacts([contact]);
     setActiveContact(contact);
+    setCurrentView('compose');
+  };
+
+  const handleSendToComposer = (contacts: Contact[]) => {
+    setSelectedContacts(contacts);
+    if (contacts.length === 1) {
+      setActiveContact(contacts[0]);
+    } else {
+      setActiveContact(null);
+    }
     setCurrentView('compose');
   };
 
@@ -122,14 +133,14 @@ export const Dashboard: React.FC<DashboardProps> = ({ isMobileMenuOpen: external
               isNewMessage={currentView === 'compose'}
               activeContact={activeContact}
             />
-          ) : (
+          ) : currentView === 'contacts' ? (
+            <ContactsTab
+              onSendToComposer={handleSendToComposer}
+            />
+          ) : currentView === 'templates' || currentView === 'settings' ? (
             <div className="h-full flex flex-col items-center justify-center p-8 text-center bg-white/50 dark:bg-[#202123]/50 backdrop-blur-sm">
               <div className="w-20 h-20 mb-6 rounded-2xl bg-gradient-to-br from-[#2b83fa]/20 to-[#60a5fa]/20 dark:from-[#2b83fa]/10 dark:to-[#60a5fa]/10 flex items-center justify-center border border-[#2b83fa]/20">
-                {currentView === 'contacts' ? (
-                  <svg xmlns="http://www.w3.org/2000/svg" className="h-10 w-10 text-[#2b83fa]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15 19.128a9.38 9.38 0 002.625.372 9.337 9.337 0 004.121-.952 4.125 4.125 0 00-7.533-2.493M15 19.128v-.003c0-1.113-.285-2.16-.786-3.07M15 19.128v.106A12.318 12.318 0 018.624 21c-2.331 0-4.512-.645-6.374-1.766l-.001-.109a6.375 6.375 0 0111.964-3.07M12 6.375a3.375 3.375 0 11-6.75 0 3.375 3.375 0 016.75 0zm8.25 2.25a2.625 2.625 0 11-5.25 0 2.625 2.625 0 015.25 0z" />
-                  </svg>
-                ) : currentView === 'templates' ? (
+                {currentView === 'templates' ? (
                   <svg xmlns="http://www.w3.org/2000/svg" className="h-10 w-10 text-[#2b83fa]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M16.5 8.25V6a2.25 2.25 0 00-2.25-2.25H6A2.25 2.25 0 003.75 6v8.25A2.25 2.25 0 006 16.5h2.25m8.25-8.25H18a2.25 2.25 0 012.25 2.25V18A2.25 2.25 0 0118 20.25h-7.5A2.25 2.25 0 018.25 18v-1.5m8.25-8.25h-6a2.25 2.25 0 00-2.25 2.25v6" />
                   </svg>
@@ -145,7 +156,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ isMobileMenuOpen: external
                 This section is currently under construction. Please check back later for updates to the CRM capabilities.
               </p>
             </div>
-          )}
+          ) : null}
         </div>
       </div>
 

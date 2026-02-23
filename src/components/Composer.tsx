@@ -63,6 +63,21 @@ export const Composer: React.FC<ComposerProps> = ({ selectedContacts, isNewMessa
     }
   }, [activeContact]);
 
+  // Handle pre-selected contacts from ContactsTab (bulk selection)
+  useEffect(() => {
+    if (selectedContacts.length > 0) {
+      if (selectedContacts.length === 1 && !activeContact) {
+        // Single contact from ContactsTab
+        setBulkSelectedContacts(selectedContacts);
+        setComposeMode("single");
+      } else if (selectedContacts.length > 1) {
+        // Multiple contacts from ContactsTab - switch to bulk mode
+        setBulkSelectedContacts(selectedContacts);
+        setComposeMode("bulk");
+      }
+    }
+  }, [selectedContacts]);
+
   // Reset bulkSelectedContacts when switching from bulk to single mode
   useEffect(() => {
     if (composeMode === "single" && bulkSelectedContacts.length > 1) {
