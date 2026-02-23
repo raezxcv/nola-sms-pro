@@ -2,8 +2,8 @@ import { useState, useRef, useEffect, useMemo } from "react";
 import { sendSms, sendBulkSms } from "../api/sms";
 import { fetchContacts } from "../api/contacts";
 import type { Contact } from "../types/Contact";
-import { Snackbar, Alert } from "@mui/material";
 import { FiUser, FiUsers } from "react-icons/fi";
+import ShinyText from "./ShinyText";
 
 interface ComposerProps {
   selectedContacts: Contact[];
@@ -185,17 +185,20 @@ export const Composer: React.FC<ComposerProps> = ({ selectedContacts, isNewMessa
     if (!isNewMessage && recipients.length === 0) return;
 
     setLoading(true);
+    // Clear message text immediately when clicking send
+    setMessage("");
+    setAttachedFiles([]);
     try {
       const newMessage: SentMessage = {
         id: Date.now().toString(),
         text: message,
         timestamp: new Date(),
         senderName: 'NOLACRM',
-        status: 'sent',
+        status: 'sending',
       };
       setMessages(prev => [...prev, newMessage]);
 
-      let smsResult;
+      let smsResult: { success?: boolean; message?: string } | undefined;
       if (!isNewMessage) {
         if (recipients.length === 1) {
           smsResult = await sendSms(recipients[0].phone, message);
@@ -215,6 +218,13 @@ export const Composer: React.FC<ComposerProps> = ({ selectedContacts, isNewMessa
           smsResult = { success: successCount > 0, message: `Sent ${successCount} of ${recipients.length} messages` };
         }
       }
+
+      // Update message status based on result
+      setMessages(prev => prev.map(msg => 
+        msg.id === newMessage.id 
+          ? { ...msg, status: smsResult?.success === true ? 'sent' : 'failed' }
+          : msg
+      ));
 
       if (!smsResult?.success) {
         setToastSeverity("error");
@@ -449,6 +459,7 @@ export const Composer: React.FC<ComposerProps> = ({ selectedContacts, isNewMessa
             {messages.map((msg, index) => {
               const isExpanded = expandedMessageId === msg.id;
               const isLastMessage = index === messages.length - 1;
+              const isSingleMessage = messages.length === 1;
               const prevMsg = messages[index - 1];
               const showDateSeparator = !prevMsg || new Date(msg.timestamp).toDateString() !== new Date(prevMsg.timestamp).toDateString();
               const isFirstInGroup = showDateSeparator;
@@ -466,11 +477,12 @@ export const Composer: React.FC<ComposerProps> = ({ selectedContacts, isNewMessa
                     className="flex flex-col justify-end items-end group mb-1 cursor-pointer w-full"
                     onClick={() => setExpandedMessageId(isExpanded ? null : msg.id)}
                   >
-                    <div className={`bg-gradient-to-r from-[#2b83fa] to-[#1d6bd4] text-white px-4 py-2.5 shadow-lg shadow-blue-500/10 transition-transform group-hover:scale-[1.01] ${isLastMessage ? 'rounded-[1.25rem] rounded-tr-md' : isFirstInGroup ? 'rounded-[1.25rem] rounded-br-md' : 'rounded-[1.25rem] rounded-tr-md rounded-br-md'}`}>
+                    <div className={`bg-gradient-to-r from-[#2b83fa] to-[#1d6bd4] text-white px-4 py-2.5 shadow-lg shadow-blue-500/10 transition-transform group-hover:scale-[1.01] ${isSingleMessage ? 'rounded-[1.25rem]' : isLastMessage ? 'rounded-[1.25rem] rounded-tr-md' : isFirstInGroup ? 'rounded-[1.25rem] rounded-br-md' : 'rounded-[1.25rem] rounded-tr-md rounded-br-md'}`}>
                       <p className="text-[14.5px] leading-relaxed whitespace-pre-wrap">{msg.text}</p>
                     </div>
-                    {isExpanded && (
-                      <div className="flex items-center gap-2 mt-3 px-1">
+                    {/* Details - hidden by default, shown on click */}
+                    <div className={`overflow-hidden transition-all duration-300 ease-in-out ${isExpanded ? 'max-h-20 opacity-100 mt-1 mb-1 px-1' : 'max-h-0 opacity-0'}`}>
+                      <div className="flex items-center gap-2">
                         <span className="text-[10px] font-semibold text-gray-500 dark:text-gray-400">
                           {msg.senderName}
                         </span>
@@ -479,11 +491,11 @@ export const Composer: React.FC<ComposerProps> = ({ selectedContacts, isNewMessa
                           {msg.timestamp.toLocaleDateString([], { month: 'short', day: 'numeric' })} {msg.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                         </span>
                         <span className="text-[10px] text-gray-400">•</span>
-                        <span className={`text-[10px] font-bold uppercase tracking-wider ${msg.status === 'sent' ? 'text-green-500' : msg.status === 'delivered' ? 'text-blue-400' : msg.status === 'failed' ? 'text-red-500' : 'text-gray-400'}`}>
+                        <span className={`text-[10px] font-bold capitalize tracking-wider ${msg.status === 'sent' ? 'text-green-500' : msg.status === 'delivered' ? 'text-blue-400' : msg.status === 'failed' ? 'text-red-500' : 'text-gray-400'}`}>
                           {msg.status === 'sending' ? '⟳' : msg.status === 'sent' ? '✓' : msg.status === 'delivered' ? '✓✓' : '✗'} {msg.status}
                         </span>
                       </div>
-                    )}
+                    </div>
                   </div>
                 </div>
               );
@@ -607,7 +619,14 @@ export const Composer: React.FC<ComposerProps> = ({ selectedContacts, isNewMessa
                     `}
                   >
                     {loading ? (
-                      <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
+                      <ShinyText
+                        text="Sending..."
+                        speed={2}
+                        color="#ffffff"
+                        shineColor="#ffffff"
+                        spread={120}
+                        className="font-bold text-[14px] hidden sm:inline"
+                      />
                     ) : (
                       <>
                         <span className={`
@@ -644,27 +663,6 @@ export const Composer: React.FC<ComposerProps> = ({ selectedContacts, isNewMessa
       </div>
 
       {/* 4. Toast Overlay */}
-      <Snackbar
-        open={toastOpen}
-        autoHideDuration={5000}
-        onClose={() => setToastOpen(false)}
-        anchorOrigin={{ vertical: "bottom", horizontal: "center" }}
-      >
-        <Alert
-          onClose={() => setToastOpen(false)}
-          severity={toastSeverity}
-          variant="filled"
-          sx={{
-            borderRadius: "16px",
-            boxShadow: "0 20px 40px rgba(0,0,0,0.1)",
-            fontSize: "14px",
-            fontWeight: 600,
-            textTransform: "none"
-          }}
-        >
-          {toastMessage}
-        </Alert>
-      </Snackbar>
     </div>
   );
 };
