@@ -48,6 +48,9 @@ export const Composer: React.FC<ComposerProps> = ({ selectedContacts, isNewMessa
   const [toastOpen, setToastOpen] = useState(false);
   const [toastSeverity, setToastSeverity] = useState<"success" | "error">("success");
   const [toastMessage, setToastMessage] = useState("");
+  
+  // Show disabled reason state
+  const [showDisabledReason, setShowDisabledReason] = useState(false);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -196,9 +199,24 @@ export const Composer: React.FC<ComposerProps> = ({ selectedContacts, isNewMessa
   const handleSend = async () => {
     const recipients = getActiveRecipients();
 
-    if (!message) return;
-    if (isNewMessage && recipients.length === 0) return;
-    if (!isNewMessage && recipients.length === 0) return;
+    if (!message) {
+      // Show disabled reason
+      setShowDisabledReason(true);
+      setTimeout(() => setShowDisabledReason(false), 3000);
+      return;
+    }
+    if (isNewMessage && recipients.length === 0) {
+      // Show disabled reason
+      setShowDisabledReason(true);
+      setTimeout(() => setShowDisabledReason(false), 3000);
+      return;
+    }
+    if (!isNewMessage && recipients.length === 0) {
+      // Show disabled reason
+      setShowDisabledReason(true);
+      setTimeout(() => setShowDisabledReason(false), 3000);
+      return;
+    }
 
     setLoading(true);
     // Clear message text immediately when clicking send
@@ -291,6 +309,14 @@ export const Composer: React.FC<ComposerProps> = ({ selectedContacts, isNewMessa
     return false;
   };
 
+  const getSendDisabledReason = (): string => {
+    if (loading) return "Sending in progress...";
+    if (!message) return "Enter a message to send";
+    if (!isNewMessage && selectedContacts.length === 0) return "Select a contact to send to";
+    if (isNewMessage && bulkSelectedContacts.length === 0) return "Select at least one recipient";
+    return "";
+  };
+
   return (
     <div className="flex flex-col h-full bg-[#f9fafb] dark:bg-[#111111] relative overflow-hidden transition-colors duration-300">
       {/* 1. Header & Recipient Area (Sticky) */}
@@ -373,7 +399,7 @@ export const Composer: React.FC<ComposerProps> = ({ selectedContacts, isNewMessa
                       }}
                       onFocus={() => setIsPickerOpen(true)}
                       placeholder={bulkSelectedContacts.length === 0 ? (composeMode === "single" ? "Search or enter number..." : "Search or enter multiple...") : ""}
-                      className="flex-1 bg-transparent border-none min-w-[120px] text-[15px] font-medium text-[#111111] dark:text-[#ececf1] placeholder-gray-300 dark:placeholder-gray-700 focus:outline-none py-1"
+                      className="flex-1 bg-transparent border-none min-w-[120px] text-[15px] font-medium text-[#111111] dark:text-[#ececf1] placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none py-1"
                     />
                   </div>
 
@@ -532,7 +558,7 @@ export const Composer: React.FC<ComposerProps> = ({ selectedContacts, isNewMessa
                 onChange={(e) => setMessage(e.target.value)}
                 onKeyDown={handleKeyDown}
                 placeholder="Type your message..."
-                className="w-full bg-transparent border-none px-4 pt-3 pb-1 text-[15px] text-[#111111] dark:text-[#ececf1] placeholder-gray-400 dark:placeholder-gray-600 resize-none focus:outline-none min-h-[56px] max-h-[200px] custom-scrollbar"
+                className="w-full bg-transparent border-none px-4 pt-3 pb-1 text-[15px] text-[#111111] dark:text-[#ececf1] placeholder-gray-400 dark:placeholder-gray-500 resize-none focus:outline-none min-h-[56px] max-h-[200px] custom-scrollbar"
                 rows={1}
                 style={{ height: 'auto', minHeight: '56px' }}
               />
@@ -633,6 +659,7 @@ export const Composer: React.FC<ComposerProps> = ({ selectedContacts, isNewMessa
                       ${isNewMessage || selectedContacts.length > 0 ? "px-5 py-2.5 rounded-2xl" : "p-3 rounded-full"}
                       sm:px-6 sm:py-3 sm:rounded-2xl
                     `}
+                    title={isSendDisabled() ? getSendDisabledReason() : undefined}
                   >
                     {loading ? (
                       <ShinyText
@@ -675,21 +702,51 @@ export const Composer: React.FC<ComposerProps> = ({ selectedContacts, isNewMessa
               </p>
             </div>
           )}
+
+          {/* Send disabled reason note */}
+          {showDisabledReason && (
+            <div className="mt-2 flex items-center gap-2 px-2 py-1.5 bg-amber-50 dark:bg-amber-900/10 rounded-lg border border-amber-200/50 dark:border-amber-700/20">
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-amber-500 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+              </svg>
+              <p className="text-[12px] font-medium text-amber-700 dark:text-amber-400">
+                {getSendDisabledReason()}
+              </p>
+            </div>
+          )}
         </div>
       </div>
 
-      {/* 4. Toast Overlay */}
+      {/* 4. Toast Overlay - subtle notification above textbox */}
       <Snackbar
         open={toastOpen}
-        autoHideDuration={6000}
+        autoHideDuration={4000}
         onClose={() => setToastOpen(false)}
-        anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+        anchorOrigin={{ vertical: 'top', horizontal: 'center' }}
+        sx={{ 
+          top: '50% !important',
+          '& .MuiSnackbar-root': { 
+            transform: 'translateY(-50%)' 
+          }
+        }}
       >
         <Alert
           onClose={() => setToastOpen(false)}
           severity={toastSeverity}
           variant="filled"
-          sx={{ width: '100%' }}
+          sx={{ 
+            width: '100%',
+            minWidth: '280px',
+            maxWidth: '400px',
+            borderRadius: '12px',
+            fontSize: '0.875rem',
+            fontWeight: 500,
+            boxShadow: '0 4px 20px rgba(0,0,0,0.15)',
+            opacity: 0.95,
+            '& .MuiAlert-icon': {
+              fontSize: '1.25rem',
+            }
+          }}
         >
           {toastMessage}
         </Alert>

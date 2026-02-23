@@ -15,6 +15,7 @@ export const ContactsTab: React.FC<ContactsTabProps> = ({ onSendToComposer }) =>
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [newContactName, setNewContactName] = useState("");
   const [newContactPhone, setNewContactPhone] = useState("");
+  const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
 
   useEffect(() => {
     fetchContacts()
@@ -116,7 +117,7 @@ export const ContactsTab: React.FC<ContactsTabProps> = ({ onSendToComposer }) =>
     <div className="flex flex-col h-full bg-[#f7f7f7] dark:bg-[#18191d]">
       {/* Header */}
       <div className="flex-shrink-0 bg-white/80 dark:bg-[#1a1b1e]/80 backdrop-blur-xl border-b border-gray-200/60 dark:border-white/5 shadow-sm">
-        <div className="max-w-5xl mx-auto px-6 py-4">
+        <div className="max-w-5xl mx-auto px-3 md:px-6 py-4">
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 rounded-xl bg-[#2b83fa] flex items-center justify-center text-white shadow-lg shadow-blue-500/20">
@@ -133,14 +134,14 @@ export const ContactsTab: React.FC<ContactsTabProps> = ({ onSendToComposer }) =>
 
           {/* Search Bar */}
           <div className="relative">
-            <FiSearch className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+            <FiSearch className="absolute left-3 sm:left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
             <input
               type="text"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Search by name or phone number..."
+              placeholder="Search by name or phone..."
               disabled={isAddModalOpen}
-              className="w-full pl-11 pr-10 py-3 bg-gray-50 dark:bg-[#111111] border border-gray-200/60 dark:border-white/10 rounded-xl text-[14px] font-medium text-[#111111] dark:text-[#ececf1] placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#2b83fa]/20 focus:border-[#2b83fa] transition-all disabled:opacity-50"
+              className="w-full pl-10 sm:pl-11 pr-10 py-2.5 sm:py-3 bg-gray-50 dark:bg-[#111111] border border-gray-200/60 dark:border-white/10 rounded-xl text-[14px] font-medium text-[#111111] dark:text-[#ececf1] placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#2b83fa]/20 focus:border-[#2b83fa] transition-all disabled:opacity-50"
             />
             {searchQuery && !isAddModalOpen && (
               <button
@@ -148,7 +149,7 @@ export const ContactsTab: React.FC<ContactsTabProps> = ({ onSendToComposer }) =>
                   e.stopPropagation();
                   setSearchQuery("");
                 }}
-                className="absolute right-3 top-1/2 -translate-y-1/2 p-1 rounded-full hover:bg-gray-200 dark:hover:bg-white/10 text-gray-400 transition-colors"
+                className="absolute right-3 sm:right-3 top-1/2 -translate-y-1/2 p-1 rounded-full hover:bg-gray-200 dark:hover:bg-white/10 text-gray-400 transition-colors"
               >
                 <FiX className="h-4 w-4" />
               </button>
@@ -157,29 +158,30 @@ export const ContactsTab: React.FC<ContactsTabProps> = ({ onSendToComposer }) =>
 
           {/* Selection Controls */}
           <div className="flex items-center justify-between mt-4 pt-3 border-t border-gray-100 dark:border-white/5">
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2 sm:gap-3">
               <button
                 onClick={isAllSelected ? handleClearSelection : handleSelectAll}
-                className={`flex items-center gap-2 px-4 py-2 rounded-xl text-[12px] font-semibold transition-all duration-200 ${
+                className={`flex items-center gap-2 px-3 sm:px-4 py-2 rounded-xl text-[12px] font-semibold transition-all duration-200 ${
                   isAllSelected
                     ? "bg-red-50 dark:bg-red-500/10 text-red-600 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-500/20"
                     : "bg-[#2b83fa]/10 dark:bg-[#2b83fa]/20 text-[#2b83fa] hover:bg-[#2b83fa]/20 dark:hover:bg-[#2b83fa]/30"
                 }`}
               >
                 <FiCheck className="h-3.5 w-3.5" />
-                {isAllSelected ? "Deselect All" : "Select All"}
+                <span className="hidden sm:inline">{isAllSelected ? "Deselect All" : "Select All"}</span>
+                <span className="sm:hidden">{isAllSelected ? "Deselect" : "Select"}</span>
               </button>
               {selectedContacts.length > 0 && (
                 <button
                   onClick={handleClearSelection}
-                  className="px-4 py-2 text-[12px] font-semibold text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-white/5 rounded-xl transition-all duration-200"
+                  className="px-3 sm:px-4 py-2 text-[12px] font-semibold text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-white/5 rounded-xl transition-all duration-200"
                 >
                   Clear
                 </button>
               )}
             </div>
-            <div className="flex items-center gap-3">
-              <span className="text-[12px] font-bold text-[#2b83fa] bg-[#2b83fa]/10 px-3 py-1 rounded-full">
+            <div className="flex items-center gap-2 sm:gap-3">
+              <span className="text-[12px] font-bold text-[#2b83fa] bg-[#2b83fa]/10 px-3 py-1 rounded-full whitespace-nowrap">
                 {selectedContacts.length} selected
               </span>
               <button
@@ -188,10 +190,10 @@ export const ContactsTab: React.FC<ContactsTabProps> = ({ onSendToComposer }) =>
                   setSearchQuery("");
                   setIsAddModalOpen(true);
                 }}
-                className="group flex items-center justify-center gap-2 bg-gradient-to-r from-[#2b83fa] to-[#1d6bd4] text-white px-4 py-2.5 rounded-2xl text-[13px] font-bold hover:shadow-[0_8px_25px_rgba(43,131,250,0.4)] active:scale-95 transition-all duration-200"
+                className="group flex items-center justify-center gap-1 sm:gap-2 bg-gradient-to-r from-[#2b83fa] to-[#1d6bd4] text-white px-3 sm:px-4 py-2.5 rounded-2xl text-[13px] font-bold hover:shadow-[0_8px_25px_rgba(43,131,250,0.4)] active:scale-95 transition-all duration-200"
               >
                 <FiPlus className="h-4 w-4" />
-                Add Contact
+                <span className="hidden sm:inline">Add Contact</span>
               </button>
             </div>
           </div>
@@ -199,7 +201,7 @@ export const ContactsTab: React.FC<ContactsTabProps> = ({ onSendToComposer }) =>
       </div>
 
       {/* Contacts List */}
-      <div className="flex-1 overflow-y-auto px-6 py-4 custom-scrollbar">
+      <div className="flex-1 overflow-y-auto px-3 md:px-6 py-4 custom-scrollbar">
         <div className="max-w-5xl mx-auto">
           {groupedContacts.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-16">
@@ -225,7 +227,7 @@ export const ContactsTab: React.FC<ContactsTabProps> = ({ onSendToComposer }) =>
                           key={contact.id}
                           onClick={() => handleToggleContact(contact)}
                           className={`
-                            group flex items-center gap-4 p-4 rounded-2xl cursor-pointer transition-all duration-200
+                            group flex items-center gap-2 sm:gap-4 p-3 sm:p-4 rounded-xl sm:rounded-2xl cursor-pointer transition-all duration-200
                             ${isSelected
                               ? "bg-[#2b83fa]/10 dark:bg-[#2b83fa]/15 border border-[#2b83fa]/20"
                               : "bg-white dark:bg-[#1a1b1e] border border-gray-100 dark:border-white/5 hover:border-gray-200 dark:hover:border-white/10 shadow-sm"
@@ -248,7 +250,7 @@ export const ContactsTab: React.FC<ContactsTabProps> = ({ onSendToComposer }) =>
                           {/* Avatar */}
                           <div
                             className={`
-                              w-11 h-11 rounded-2xl flex items-center justify-center font-bold text-[14px] flex-shrink-0 transition-all duration-200
+                              w-9 sm:w-11 h-9 sm:h-11 rounded-xl sm:rounded-2xl flex items-center justify-center font-bold text-[13px] sm:text-[14px] flex-shrink-0 transition-all duration-200
                               ${isSelected
                                 ? "bg-[#2b83fa] text-white shadow-lg shadow-blue-500/20"
                                 : "bg-gray-100 dark:bg-white/10 text-gray-600 dark:text-gray-300"
@@ -289,8 +291,11 @@ export const ContactsTab: React.FC<ContactsTabProps> = ({ onSendToComposer }) =>
 
                           {/* Delete button */}
                           <button
-                            onClick={(e) => handleDeleteContact(contact.id, e)}
-                            className="p-2 rounded-lg opacity-0 group-hover:opacity-100 hover:bg-red-50 dark:hover:bg-red-500/10 text-gray-400 hover:text-red-500 transition-all duration-200"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setDeleteConfirmId(contact.id);
+                            }}
+                            className="p-2 rounded-lg hover:bg-red-50 dark:hover:bg-red-500/10 text-gray-400 hover:text-red-500 transition-all duration-200"
                             title="Delete contact"
                           >
                             <FiTrash2 className="h-4 w-4" />
@@ -308,24 +313,64 @@ export const ContactsTab: React.FC<ContactsTabProps> = ({ onSendToComposer }) =>
 
       {/* Floating Action Bar */}
       {selectedContacts.length > 0 && (
-        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 animate-in slide-in-from-bottom-4 fade-in duration-300">
-          <div className="flex items-center gap-4 px-6 py-4 bg-white dark:bg-[#1a1b1e] rounded-2xl shadow-2xl shadow-black/20 dark:shadow-black/30 border border-gray-100 dark:border-white/10">
-            <span className="text-[14px] font-bold text-gray-700 dark:text-white">
+        <div className="fixed bottom-4 sm:bottom-6 left-1/2 -translate-x-1/2 z-50 animate-in slide-in-from-bottom-4 fade-in duration-300 px-3 sm:px-0">
+          <div className="flex flex-col sm:flex-row items-center gap-3 sm:gap-4 px-4 sm:px-6 py-3 sm:py-4 bg-white dark:bg-[#1a1b1e] rounded-2xl shadow-2xl shadow-black/20 dark:shadow-black/30 border border-gray-100 dark:border-white/10">
+            <span className="text-[13px] sm:text-[14px] font-bold text-gray-700 dark:text-white">
               {selectedContacts.length} contact{selectedContacts.length !== 1 ? "s" : ""} selected
             </span>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 w-full sm:w-auto">
               <button
                 onClick={handleClearSelection}
-                className="px-4 py-2 text-[13px] font-semibold text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-white transition-colors"
+                className="flex-1 sm:flex-none px-4 py-2 text-[13px] font-semibold text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-white transition-colors"
               >
                 Cancel
               </button>
               <button
                 onClick={handleSendToComposer}
-                className="group flex items-center justify-center gap-2 bg-gradient-to-r from-[#2b83fa] to-[#1d6bd4] text-white px-5 py-2.5 rounded-2xl font-bold text-[13px] hover:shadow-[0_8px_25px_rgba(43,131,250,0.4)] active:scale-95 transition-all duration-200"
+                className="flex-1 sm:flex-none group flex items-center justify-center gap-2 bg-gradient-to-r from-[#2b83fa] to-[#1d6bd4] text-white px-4 sm:px-5 py-2.5 rounded-2xl font-bold text-[13px] hover:shadow-[0_8px_25px_rgba(43,131,250,0.4)] active:scale-95 transition-all duration-200"
               >
                 <FiMail className="h-4 w-4" />
-                Send Message
+                Send
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Confirmation Modal */}
+      {deleteConfirmId && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div 
+            className="absolute inset-0 bg-black/50 backdrop-blur-sm"
+            onClick={() => setDeleteConfirmId(null)}
+          />
+          <div className="relative w-full max-w-sm bg-white dark:bg-[#1a1b1e] rounded-2xl shadow-2xl p-4 sm:p-6 animate-in zoom-in-95 duration-200">
+            <div className="flex items-center justify-center mb-4">
+              <div className="w-12 h-12 rounded-full bg-red-100 dark:bg-red-500/20 flex items-center justify-center">
+                <FiTrash2 className="h-6 w-6 text-red-500" />
+              </div>
+            </div>
+            <h3 className="text-[16px] sm:text-[18px] font-bold text-[#111111] dark:text-[#ececf1] text-center mb-2">
+              Delete Contact?
+            </h3>
+            <p className="text-[13px] sm:text-[14px] text-gray-500 dark:text-gray-400 text-center mb-6">
+              Are you sure you want to delete this contact? This action cannot be undone.
+            </p>
+            <div className="flex flex-col sm:flex-row items-center gap-3">
+              <button
+                onClick={() => setDeleteConfirmId(null)}
+                className="w-full sm:flex-1 px-4 py-2.5 text-[14px] font-semibold text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-white/5 rounded-xl transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => {
+                  handleDeleteContact(deleteConfirmId);
+                  setDeleteConfirmId(null);
+                }}
+                className="w-full sm:flex-1 px-4 py-2.5 bg-red-500 hover:bg-red-600 text-white rounded-xl font-semibold text-[14px] transition-all duration-200"
+              >
+                Delete
               </button>
             </div>
           </div>
@@ -339,9 +384,9 @@ export const ContactsTab: React.FC<ContactsTabProps> = ({ onSendToComposer }) =>
             className="absolute inset-0 bg-black/50 backdrop-blur-sm"
             onClick={() => setIsAddModalOpen(false)}
           />
-          <div className="relative w-full max-w-md bg-white dark:bg-[#1a1b1e] rounded-2xl shadow-2xl p-6 animate-in zoom-in-95 duration-200">
-            <div className="flex items-center justify-between mb-6">
-              <h3 className="text-[18px] font-bold text-[#111111] dark:text-[#ececf1]">Add New Contact</h3>
+          <div className="relative w-full max-w-md bg-white dark:bg-[#1a1b1e] rounded-2xl shadow-2xl p-4 sm:p-6 animate-in zoom-in-95 duration-200">
+            <div className="flex items-center justify-between mb-4 sm:mb-6">
+              <h3 className="text-[16px] sm:text-[18px] font-bold text-[#111111] dark:text-[#ececf1]">Add New Contact</h3>
               <button
                 onClick={() => setIsAddModalOpen(false)}
                 className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-white/5 text-gray-500 transition-colors"
@@ -352,7 +397,7 @@ export const ContactsTab: React.FC<ContactsTabProps> = ({ onSendToComposer }) =>
             
             <div className="space-y-4">
               <div>
-                <label className="block text-[12px] font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">
+                <label className="block text-[11px] sm:text-[12px] font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">
                   Name
                 </label>
                 <input
@@ -360,16 +405,16 @@ export const ContactsTab: React.FC<ContactsTabProps> = ({ onSendToComposer }) =>
                   value={newContactName}
                   onChange={(e) => setNewContactName(e.target.value)}
                   placeholder="Enter contact name"
-                  className="w-full px-4 py-3 bg-gray-50 dark:bg-[#111111] border border-gray-200/60 dark:border-white/10 rounded-xl text-[14px] font-medium text-[#111111] dark:text-[#ececf1] placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#2b83fa]/20 focus:border-[#2b83fa] transition-all"
+                  className="w-full px-3 sm:px-4 py-2.5 sm:py-3 bg-gray-50 dark:bg-[#111111] border border-gray-200/60 dark:border-white/10 rounded-xl text-[14px] font-medium text-[#111111] dark:text-[#ececf1] placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#2b83fa]/20 focus:border-[#2b83fa] transition-all"
                 />
               </div>
               
               <div>
-                <label className="block text-[12px] font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">
+                <label className="block text-[11px] sm:text-[12px] font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">
                   Phone Number
                 </label>
                 <div className="relative">
-                  <span className="absolute left-4 top-1/2 -translate-y-1/2 text-[14px] font-medium text-gray-500 dark:text-gray-400">+63</span>
+                  <span className="absolute left-3 sm:left-4 top-1/2 -translate-y-1/2 text-[14px] font-medium text-gray-500 dark:text-gray-400">+63</span>
                   <input
                     type="tel"
                     inputMode="tel"
@@ -391,23 +436,23 @@ export const ContactsTab: React.FC<ContactsTabProps> = ({ onSendToComposer }) =>
                       setNewContactPhone(formatted);
                     }}
                     placeholder="912 345 6789"
-                    className="w-full pl-16 pr-4 py-3 bg-gray-50 dark:bg-[#111111] border border-gray-200/60 dark:border-white/10 rounded-xl text-[14px] font-medium text-[#111111] dark:text-[#ececf1] placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#2b83fa]/20 focus:border-[#2b83fa] transition-all"
+                    className="w-full pl-12 sm:pl-16 pr-3 sm:pr-4 py-2.5 sm:py-3 bg-gray-50 dark:bg-[#111111] border border-gray-200/60 dark:border-white/10 rounded-xl text-[14px] font-medium text-[#111111] dark:text-[#ececf1] placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#2b83fa]/20 focus:border-[#2b83fa] transition-all"
                   />
                 </div>
               </div>
             </div>
 
-            <div className="flex items-center gap-3 mt-6">
+            <div className="flex flex-col sm:flex-row items-center gap-3 sm:gap-3 mt-4 sm:mt-6">
               <button
                 onClick={() => setIsAddModalOpen(false)}
-                className="flex-1 px-4 py-3 text-[14px] font-semibold text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-white/5 rounded-xl transition-colors"
+                className="w-full sm:flex-1 px-4 py-3 text-[14px] font-semibold text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-white/5 rounded-xl transition-colors"
               >
                 Cancel
               </button>
               <button
                 onClick={handleAddContact}
                 disabled={!newContactName.trim() || newContactPhone.replace(/\D/g, "").length < 7}
-                className="flex-1 flex items-center justify-center gap-2 px-4 py-3 bg-[#2b83fa] hover:bg-[#1d6bd4] disabled:bg-gray-300 dark:disabled:bg-gray-600 disabled:cursor-not-allowed text-white disabled:text-gray-500 dark:disabled:text-gray-400 rounded-xl font-semibold text-[14px] transition-all duration-200"
+                className="w-full sm:flex-1 flex items-center justify-center gap-2 px-4 py-3 bg-[#2b83fa] hover:bg-[#1d6bd4] disabled:bg-gray-300 dark:disabled:bg-gray-600 disabled:cursor-not-allowed text-white disabled:text-gray-500 dark:disabled:text-gray-400 rounded-xl font-semibold text-[14px] transition-all duration-200"
               >
                 <FiPlus className="h-4 w-4" />
                 Add Contact
