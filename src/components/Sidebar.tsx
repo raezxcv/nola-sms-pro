@@ -226,17 +226,17 @@ export const Sidebar: React.FC<SidebarProps> = ({
       </div>
 
       {/* Activity Feed Section */}
-      <div className={`flex-1 overflow-hidden flex flex-col mt-4 ${isCollapsed ? 'items-center' : ''}`}>
+      <div className={`flex-1 min-h-0 flex flex-col mt-4 ${isCollapsed ? 'items-center' : ''}`}>
         {!isCollapsed && (
-          <div className="flex-1 overflow-hidden px-2">
-            {/* Messages Section Header */}
-            <div className="px-2 py-2 pt-4 border-t border-[#00000005] dark:border-[#ffffff05]">
+          <div className="flex-1 overflow-y-auto custom-scrollbar px-2 pb-4">
+            {/* Messages Section Header - Sticky at top */}
+            <div className="px-2 py-2 pt-4 border-t border-[#00000005] dark:border-[#ffffff05] sticky top-0 bg-white/70 dark:bg-[#121415]/80 backdrop-blur-xl z-10">
               <h2 className="text-[12px] font-bold text-[#5f6368] dark:text-[#9aa0a6] uppercase tracking-wider">Messages</h2>
             </div>
 
-            {/* Direct Messages Header */}
+            {/* Direct Messages Header - Sticky */}
             <div 
-              className="flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-black/[0.04] dark:hover:bg-white/[0.04] transition-colors cursor-pointer border-t border-[#00000005] dark:border-[#ffffff05] pt-4"
+              className="flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-black/[0.04] dark:hover:bg-white/[0.04] transition-colors cursor-pointer border-t border-[#00000005] dark:border-[#ffffff05] pt-4 sticky top-[41px] bg-white/70 dark:bg-[#121415]/80 backdrop-blur-xl z-10"
               onClick={() => setDirectMessagesExpanded(!directMessagesExpanded)}
             >
               <div className={`transition-transform duration-200 ${directMessagesExpanded ? 'rotate-0' : '-rotate-90'}`}>
@@ -246,9 +246,9 @@ export const Sidebar: React.FC<SidebarProps> = ({
               <span className="text-[11px] font-medium text-[#5f6368] dark:text-[#9aa0a6] bg-[#f1f3f4] dark:bg-[#3c4043] px-1.5 py-0.5 rounded">{contacts.length}</span>
             </div>
 
-            {/* Direct Messages Content */}
+            {/* Direct Messages Content - Not scrollable, part of main scroll */}
             <div className={`overflow-hidden transition-all duration-300 ${directMessagesExpanded ? 'max-h-[500px] opacity-100 mb-2' : 'max-h-0 opacity-0'}`}>
-              <div className={`overflow-y-auto custom-scrollbar flex flex-col gap-0.5`}>
+              <div className="flex flex-col gap-0.5">
               {contacts.map(contact => (
                 <div
                   key={contact.id}
@@ -328,24 +328,24 @@ export const Sidebar: React.FC<SidebarProps> = ({
               </div>
             </div>
 
-            {/* Bulk Messages Header - Below Direct */}
-            {bulkHistory.length > 0 && (
-              <>
-                <div 
-                  className="flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-black/[0.04] dark:hover:bg-white/[0.04] transition-colors cursor-pointer mt-1"
-                  onClick={() => setBulkMessagesExpanded(!bulkMessagesExpanded)}
-                >
-                  <div className={`transition-transform duration-200 ${bulkMessagesExpanded ? 'rotate-0' : '-rotate-90'}`}>
-                    <FiChevronDown className="w-4 h-4 text-[#5f6368] dark:text-[#9aa0a6]" />
-                  </div>
-                  <h3 className="text-[13px] font-semibold text-[#3c4043] dark:text-[#e8eaed]">Bulk Messages</h3>
-                  <span className="text-[11px] font-medium text-[#5f6368] dark:text-[#9aa0a6] bg-[#f1f3f4] dark:bg-[#3c4043] px-1.5 py-0.5 rounded">{bulkHistory.length}</span>
+            {/* Bulk Messages Header - Sticky */}
+            <>
+              <div 
+                className="flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-black/[0.04] dark:hover:bg-white/[0.04] transition-colors cursor-pointer mt-1 sticky top-[92px] bg-white/70 dark:bg-[#121415]/80 backdrop-blur-xl z-10"
+                onClick={() => setBulkMessagesExpanded(!bulkMessagesExpanded)}
+              >
+                <div className={`transition-transform duration-200 ${bulkMessagesExpanded ? 'rotate-0' : '-rotate-90'}`}>
+                  <FiChevronDown className="w-4 h-4 text-[#5f6368] dark:text-[#9aa0a6]" />
                 </div>
+                <h3 className="text-[13px] font-semibold text-[#3c4043] dark:text-[#e8eaed]">Bulk Messages</h3>
+                <span className="text-[11px] font-medium text-[#5f6368] dark:text-[#9aa0a6] bg-[#f1f3f4] dark:bg-[#3c4043] px-1.5 py-0.5 rounded">{bulkHistory.length}</span>
+              </div>
 
-                {/* Bulk Messages Content */}
-                <div className={`overflow-hidden transition-all duration-300 ${bulkMessagesExpanded ? 'max-h-[500px] opacity-100' : 'max-h-0 opacity-0'}`}>
-                  <div className={`overflow-y-auto custom-scrollbar flex flex-col gap-0.5`}>
-                    {bulkHistory.map(item => (
+              {/* Bulk Messages Content - Not scrollable, part of main scroll */}
+              <div className={`overflow-hidden transition-all duration-300 ${bulkMessagesExpanded ? 'max-h-[500px] opacity-100' : 'max-h-0 opacity-0'}`}>
+                <div className="flex flex-col gap-0.5">
+                  {bulkHistory.length > 0 ? (
+                    bulkHistory.map(item => (
                       <div
                         key={item.id}
                         className={`
@@ -436,11 +436,15 @@ export const Sidebar: React.FC<SidebarProps> = ({
                           </div>
                         </div>
                       </div>
-                    ))}
-                  </div>
+                    ))
+                  ) : (
+                    <div className="text-[12px] text-[#9aa0a6] dark:text-[#6e6e73] px-3 py-2 italic">
+                      No bulk messages yet
+                    </div>
+                  )}
                 </div>
-              </>
-            )}
+              </div>
+            </>
           </div>
         )}
       </div>
