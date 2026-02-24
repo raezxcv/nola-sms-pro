@@ -1,5 +1,6 @@
 import { useState } from "react";
 import type { Contact } from "../types/Contact";
+import type { BulkMessageHistoryItem } from "../types/Sms";
 import { Sidebar } from "../components/Sidebar";
 import type { ViewTab } from "../components/Sidebar";
 import { Composer } from "../components/Composer";
@@ -25,6 +26,13 @@ export const Dashboard: React.FC<DashboardProps> = ({ isMobileMenuOpen: external
   const handleSelectContact = (contact: Contact) => {
     setSelectedContacts([contact]);
     setActiveContact(contact);
+    setCurrentView('compose');
+  };
+
+  const handleSelectBulkMessage = (bulkMessage: BulkMessageHistoryItem) => {
+    console.log('Selected bulk message:', bulkMessage);
+    setSelectedContacts([]);
+    setActiveContact(null);
     setCurrentView('compose');
   };
 
@@ -77,6 +85,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ isMobileMenuOpen: external
             activeContactId={activeContact?.id}
             isCollapsed={isSidebarCollapsed}
             onToggleCollapse={toggleCollapse}
+            onSelectBulkMessage={handleSelectBulkMessage}
           />
         </div>
       </div>

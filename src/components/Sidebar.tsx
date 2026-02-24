@@ -1,7 +1,10 @@
 import { useEffect, useState } from "react";
 import { fetchContacts } from "../api/contacts";
 import type { Contact } from "../types/Contact";
+import type { BulkMessageHistoryItem } from "../types/Sms";
+import { getBulkMessageHistory, renameBulkMessage, deleteBulkMessage, deleteContact, getDeletedContactIds } from "../utils/storage";
 import { TbLayoutSidebarLeftCollapse, TbLayoutSidebarRightCollapse } from "react-icons/tb";
+import { FiUsers, FiChevronDown, FiEdit2, FiTrash2 } from "react-icons/fi";
 
 export type ViewTab = 'compose' | 'contacts' | 'templates' | 'settings';
 
@@ -12,6 +15,7 @@ interface SidebarProps {
   activeContactId?: string;
   isCollapsed?: boolean;
   onToggleCollapse?: () => void;
+  onSelectBulkMessage?: (message: BulkMessageHistoryItem) => void;
 }
 
 export const Sidebar: React.FC<SidebarProps> = ({
@@ -20,13 +24,91 @@ export const Sidebar: React.FC<SidebarProps> = ({
   onSelectContact,
   activeContactId,
   isCollapsed = false,
-  onToggleCollapse
+  onToggleCollapse,
+  onSelectBulkMessage
 }) => {
   const [contacts, setContacts] = useState<Contact[]>([]);
+  const [bulkHistory, setBulkHistory] = useState<BulkMessageHistoryItem[]>(() => getBulkMessageHistory());
+  const [directMessagesExpanded, setDirectMessagesExpanded] = useState(true);
+  const [bulkMessagesExpanded, setBulkMessagesExpanded] = useState(true);
+  const [editingBulkId, setEditingBulkId] = useState<string | null>(null);
+  const [editingBulkName, setEditingBulkName] = useState("");
+  const [deletingBulkId, setDeletingBulkId] = useState<string | null>(null);
+  const [deletingContactId, setDeletingContactId] = useState<string | null>(null);
 
   useEffect(() => {
-    fetchContacts().then(setContacts).catch(console.error);
+    fetchContacts().then(data => {
+      const deletedIds = getDeletedContactIds();
+      const filtered = data.filter(c => !deletedIds.includes(c.id));
+      setContacts(filtered);
+    }).catch(console.error);
+    
+    // Listen for bulk message sent events to refresh history
+    const handleBulkMessageSent = () => {
+      setBulkHistory(getBulkMessageHistory());
+    };
+    window.addEventListener('bulk-message-sent', handleBulkMessageSent);
+    return () => {
+      window.removeEventListener('bulk-message-sent', handleBulkMessageSent);
+    };
   }, []);
+
+  // Handler functions for bulk message CRUD
+  const handleStartEdit = (item: BulkMessageHistoryItem) => {
+    setEditingBulkId(item.id);
+    setEditingBulkName(item.customName || (item.recipientNames?.join(", ") || `${item.recipientCount} recipients`));
+  };
+
+  const handleSaveEdit = (id: string) => {
+    if (editingBulkName.trim()) {
+      renameBulkMessage(id, editingBulkName.trim());
+      setBulkHistory(getBulkMessageHistory());
+    }
+    setEditingBulkId(null);
+    setEditingBulkName("");
+  };
+
+  const handleDelete = (id: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setDeletingBulkId(id);
+  };
+
+  const confirmDelete = () => {
+    if (deletingBulkId) {
+      deleteBulkMessage(deletingBulkId);
+      setBulkHistory(getBulkMessageHistory());
+      setDeletingBulkId(null);
+    }
+  };
+
+  const cancelDelete = () => {
+    setDeletingBulkId(null);
+  };
+
+  const handleDeleteContact = (id: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setDeletingContactId(id);
+  };
+
+  const confirmDeleteContact = () => {
+    if (deletingContactId) {
+      deleteContact(deletingContactId);
+      setContacts(contacts.filter(c => c.id !== deletingContactId));
+      setDeletingContactId(null);
+    }
+  };
+
+  const cancelDeleteContact = () => {
+    setDeletingContactId(null);
+  };
+
+  const getBulkDisplayName = (item: BulkMessageHistoryItem): string => {
+    if (item.customName) return item.customName;
+    if (item.recipientNames && item.recipientNames.length > 0) {
+      return item.recipientNames.join(", ");
+    }
+    return `${item.recipientCount} recipient${item.recipientCount !== 1 ? 's' : ''}`;
+  };
 
   const navItems = [
     {
@@ -145,71 +227,222 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
       {/* Activity Feed Section */}
       <div className={`flex-1 overflow-hidden flex flex-col mt-4 ${isCollapsed ? 'items-center' : ''}`}>
-        <div className={`border-t border-[#00000005] dark:border-[#ffffff05] group cursor-default ${isCollapsed ? 'w-full pt-4' : 'px-6 py-2 pt-4'}`}>
-          {!isCollapsed && (
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-[11px] font-bold uppercase tracking-[0.1em] text-[#9e9e9e] dark:text-[#55565a]">Direct Messages</h3>
-              <span className="text-[10px] font-bold text-[#2b83fa] bg-[#2b83fa]/5 px-2 py-0.5 rounded-full">{contacts.length}</span>
+        {!isCollapsed && (
+          <div className="flex-1 overflow-hidden px-2">
+            {/* Messages Section Header */}
+            <div className="px-2 py-2 pt-4 border-t border-[#00000005] dark:border-[#ffffff05]">
+              <h2 className="text-[12px] font-bold text-[#5f6368] dark:text-[#9aa0a6] uppercase tracking-wider">Messages</h2>
             </div>
-          )}
-        </div>
-        <div className={`flex-1 overflow-y-auto custom-scrollbar flex flex-col gap-1 pb-4 ${isCollapsed ? 'px-2 items-center' : 'px-3'}`}>
-          {contacts.map(contact => (
-            <div
-              key={contact.id}
-              className={`
-                 group relative transition-all duration-300
-                 ${isCollapsed ? 'w-12 h-12 flex items-center justify-center rounded-2xl mb-1' : 'px-3 py-3 rounded-2xl cursor-pointer mb-0.5'}
-                 ${activeContactId === contact.id
-                  ? 'bg-white dark:bg-[#1c1e21] shadow-[0_4px_15px_rgba(0,0,0,0.05)] dark:shadow-[0_10px_30px_rgba(0,0,0,0.3)] ring-1 ring-[#00000005] dark:ring-[#ffffff05]'
-                  : 'hover:bg-black/[0.015] dark:hover:bg-white/[0.015]'}
-               `}
-              onClick={() => {
-                onTabChange('compose');
-                onSelectContact(contact);
-              }}
-              title={isCollapsed ? contact.name : ""}
+
+            {/* Direct Messages Header */}
+            <div 
+              className="flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-black/[0.04] dark:hover:bg-white/[0.04] transition-colors cursor-pointer border-t border-[#00000005] dark:border-[#ffffff05] pt-4"
+              onClick={() => setDirectMessagesExpanded(!directMessagesExpanded)}
             >
-              <div className={`flex items-center ${isCollapsed ? 'justify-center' : 'gap-3.5'}`}>
-                <div className="relative flex-shrink-0">
-                  <div className={`${isCollapsed ? 'w-9 h-9' : 'w-10 h-10'} rounded-2xl flex items-center justify-center font-bold text-[14px] transition-all duration-300 shadow-inner
-                    ${activeContactId === contact.id
-                      ? 'bg-[#2b83fa] text-white shadow-[0_4px_8px_rgba(43,131,250,0.2)]'
-                      : 'bg-[#f0f0f0] dark:bg-[#202123] text-[#6e6e73] dark:text-[#ececf1] group-hover:bg-[#e8e8e8] dark:group-hover:bg-[#25262a]'}
-                  `}>
-                    {(() => {
-                      const parts = contact.name.trim().split(/\s+/);
-                      const firstInitial = parts[0]?.charAt(0) || '';
-                      const lastInitial = parts.length > 1 ? parts[parts.length - 1].charAt(0) : '';
-                      return (firstInitial + lastInitial).toUpperCase();
-                    })()}
+              <div className={`transition-transform duration-200 ${directMessagesExpanded ? 'rotate-0' : '-rotate-90'}`}>
+                <FiChevronDown className="w-4 h-4 text-[#5f6368] dark:text-[#9aa0a6]" />
+              </div>
+              <h3 className="text-[13px] font-semibold text-[#3c4043] dark:text-[#e8eaed]">Direct Messages</h3>
+              <span className="text-[11px] font-medium text-[#5f6368] dark:text-[#9aa0a6] bg-[#f1f3f4] dark:bg-[#3c4043] px-1.5 py-0.5 rounded">{contacts.length}</span>
+            </div>
+
+            {/* Direct Messages Content */}
+            <div className={`overflow-hidden transition-all duration-300 ${directMessagesExpanded ? 'max-h-[500px] opacity-100 mb-2' : 'max-h-0 opacity-0'}`}>
+              <div className={`overflow-y-auto custom-scrollbar flex flex-col gap-0.5`}>
+              {contacts.map(contact => (
+                <div
+                  key={contact.id}
+                  className={`
+                     group relative transition-all duration-300
+                     px-3 py-3 rounded-2xl cursor-pointer mb-0.5
+                     ${activeContactId === contact.id
+                     ? 'bg-white dark:bg-[#1c1e21] shadow-[0_4px_15px_rgba(0,0,0,0.05)] dark:shadow-[0_10px_30px_rgba(0,0,0,0.3)] ring-1 ring-[#00000005] dark:ring-[#ffffff05]'
+                     : 'hover:bg-black/[0.015] dark:hover:bg-white/[0.015]'}
+                  `}
+                  onClick={() => {
+                    onTabChange('compose');
+                    onSelectContact(contact);
+                  }}
+                >
+                  <div className="flex items-center gap-3.5">
+                    <div className="relative flex-shrink-0">
+                      <div className={`w-10 h-10 rounded-2xl flex items-center justify-center font-bold text-[14px] transition-all duration-300 shadow-inner
+                        ${activeContactId === contact.id
+                          ? 'bg-[#2b83fa] text-white shadow-[0_4px_8px_rgba(43,131,250,0.2)]'
+                          : 'bg-[#f0f0f0] dark:bg-[#202123] text-[#6e6e73] dark:text-[#ececf1] group-hover:bg-[#e8e8e8] dark:group-hover:bg-[#25262a]'}
+                      `}>
+                        {(() => {
+                          const parts = contact.name.trim().split(/\s+/);
+                          const firstInitial = parts[0]?.charAt(0) || '';
+                          const lastInitial = parts.length > 1 ? parts[parts.length - 1].charAt(0) : '';
+                          return (firstInitial + lastInitial).toUpperCase();
+                        })()}
+                      </div>
+                      <span className={`absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 rounded-full border-2 border-white dark:border-[#121415] shadow-sm transition-opacity duration-300
+                        ${activeContactId === contact.id ? 'bg-green-500 opacity-100' : 'bg-gray-300 dark:bg-gray-600 opacity-0 group-hover:opacity-100'}
+                      `}></span>
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex justify-between items-baseline mb-0.5">
+                        <span className={`text-[13.5px] truncate transition-colors duration-200 ${activeContactId === contact.id ? 'font-bold text-[#111111] dark:text-white' : 'font-semibold text-[#37352f] dark:text-[#ececf1]'}`}>
+                          {contact.name}
+                        </span>
+                        <div className="flex items-center gap-1">
+                          <span className="text-[9px] font-bold text-[#b4b4b4] dark:text-[#55565a] uppercase tracking-tighter">2m</span>
+                          {deletingContactId === contact.id ? (
+                            <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
+                              <button
+                                onClick={confirmDeleteContact}
+                                className="p-1 rounded bg-red-500 text-white hover:bg-red-600"
+                              >
+                                <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                                </svg>
+                              </button>
+                              <button
+                                onClick={cancelDeleteContact}
+                                className="p-1 rounded bg-gray-300 dark:bg-gray-600 text-gray-700 dark:text-gray-200 hover:bg-gray-400 dark:hover:bg-gray-500"
+                              >
+                                <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                                </svg>
+                              </button>
+                            </div>
+                          ) : (
+                            <button
+                              onClick={(e) => handleDeleteContact(contact.id, e)}
+                              className="p-1 rounded opacity-0 group-hover:opacity-100 hover:bg-red-100 dark:hover:bg-red-900/20"
+                            >
+                              <FiTrash2 className="w-3 h-3 text-red-500" />
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                      <div className={`text-[11.5px] truncate leading-tight transition-colors duration-200 ${activeContactId === contact.id ? 'text-[#6e6e73] dark:text-[#a0a0ab]' : 'text-[#a2a2a7] dark:text-[#6e6e73]'}`}>
+                        {contact.lastMessage || `Click to message ${contact.phone}`}
+                      </div>
+                    </div>
                   </div>
-                  {!isCollapsed && (
-                    <span className={`absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 rounded-full border-2 border-white dark:border-[#121415] shadow-sm transition-opacity duration-300
-                      ${activeContactId === contact.id ? 'bg-green-500 opacity-100' : 'bg-gray-300 dark:bg-gray-600 opacity-0 group-hover:opacity-100'}
-                    `}></span>
-                  )}
-                  {isCollapsed && activeContactId === contact.id && (
-                    <span className="absolute -bottom-0.5 -right-0.5 w-3 h-3 bg-green-500 border-2 border-white dark:border-[#121415] rounded-full"></span>
-                  )}
                 </div>
-                {!isCollapsed && (
-                  <div className="flex-1 min-w-0">
-                    <div className="flex justify-between items-baseline mb-0.5">
-                      <span className={`text-[13.5px] truncate transition-colors duration-200 ${activeContactId === contact.id ? 'font-bold text-[#111111] dark:text-white' : 'font-semibold text-[#37352f] dark:text-[#ececf1]'}`}>
-                        {contact.name}
-                      </span>
-                      <span className="text-[9px] font-bold text-[#b4b4b4] dark:text-[#55565a] uppercase tracking-tighter">2m</span>
-                    </div>
-                    <div className={`text-[11.5px] truncate leading-tight transition-colors duration-200 ${activeContactId === contact.id ? 'text-[#6e6e73] dark:text-[#a0a0ab]' : 'text-[#a2a2a7] dark:text-[#6e6e73]'}`}>
-                      {contact.lastMessage || `Click to message ${contact.phone}`}
-                    </div>
-                  </div>
-                )}
+              ))}
               </div>
             </div>
-          ))}
-        </div>
+
+            {/* Bulk Messages Header - Below Direct */}
+            {bulkHistory.length > 0 && (
+              <>
+                <div 
+                  className="flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-black/[0.04] dark:hover:bg-white/[0.04] transition-colors cursor-pointer mt-1"
+                  onClick={() => setBulkMessagesExpanded(!bulkMessagesExpanded)}
+                >
+                  <div className={`transition-transform duration-200 ${bulkMessagesExpanded ? 'rotate-0' : '-rotate-90'}`}>
+                    <FiChevronDown className="w-4 h-4 text-[#5f6368] dark:text-[#9aa0a6]" />
+                  </div>
+                  <h3 className="text-[13px] font-semibold text-[#3c4043] dark:text-[#e8eaed]">Bulk Messages</h3>
+                  <span className="text-[11px] font-medium text-[#5f6368] dark:text-[#9aa0a6] bg-[#f1f3f4] dark:bg-[#3c4043] px-1.5 py-0.5 rounded">{bulkHistory.length}</span>
+                </div>
+
+                {/* Bulk Messages Content */}
+                <div className={`overflow-hidden transition-all duration-300 ${bulkMessagesExpanded ? 'max-h-[500px] opacity-100' : 'max-h-0 opacity-0'}`}>
+                  <div className={`overflow-y-auto custom-scrollbar flex flex-col gap-0.5`}>
+                    {bulkHistory.map(item => (
+                      <div
+                        key={item.id}
+                        className={`
+                          group relative transition-all duration-200 rounded-lg mx-1
+                          px-2 py-2 cursor-pointer
+                          hover:bg-[#f1f3f4] dark:hover:bg-[#303134]
+                        `}
+                        onClick={() => {
+                          onTabChange('compose');
+                          if (onSelectBulkMessage) {
+                            onSelectBulkMessage(item);
+                          }
+                        }}
+                      >
+                        <div className="flex items-center gap-3">
+                          <div className="relative flex-shrink-0">
+                            <div className="w-8 h-8 rounded-full flex items-center justify-center transition-all duration-200
+                              bg-[#ede9fe] text-[#7c3aed] group-hover:bg-[#ddd6fe]
+                            ">
+                              <FiUsers className="w-4 h-4" />
+                            </div>
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            {editingBulkId === item.id ? (
+                              <input
+                                type="text"
+                                value={editingBulkName}
+                                onChange={(e) => setEditingBulkName(e.target.value)}
+                                onBlur={() => handleSaveEdit(item.id)}
+                                onKeyDown={(e) => {
+                                  if (e.key === 'Enter') handleSaveEdit(item.id);
+                                  if (e.key === 'Escape') setEditingBulkId(null);
+                                }}
+                                onClick={(e) => e.stopPropagation()}
+                                autoFocus
+                                className="w-full text-[13px] font-medium text-[#3c4043] dark:text-[#e8eaed] bg-white dark:bg-[#3c4043] px-1 py-0.5 rounded border border-[#2b83fa] outline-none"
+                              />
+                            ) : (
+                              <>
+                                <div className="flex justify-between items-baseline">
+                                  <span className="text-[13px] truncate font-medium text-[#3c4043] dark:text-[#e8eaed]">
+                                    {getBulkDisplayName(item)}
+                                  </span>
+                                  <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                    <button
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        handleStartEdit(item);
+                                      }}
+                                      className="p-1 rounded hover:bg-[#e8e8e8] dark:hover:bg-[#3c4043]"
+                                    >
+                                      <FiEdit2 className="w-3 h-3 text-[#5f6368] dark:text-[#9aa0a6]" />
+                                    </button>
+                                    {deletingBulkId === item.id ? (
+                                      <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
+                                        <button
+                                          onClick={confirmDelete}
+                                          className="p-1 rounded bg-red-500 text-white hover:bg-red-600"
+                                        >
+                                          <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                                          </svg>
+                                        </button>
+                                        <button
+                                          onClick={cancelDelete}
+                                          className="p-1 rounded bg-gray-300 dark:bg-gray-600 text-gray-700 dark:text-gray-200 hover:bg-gray-400 dark:hover:bg-gray-500"
+                                        >
+                                          <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                                          </svg>
+                                        </button>
+                                      </div>
+                                    ) : (
+                                      <button
+                                        onClick={(e) => handleDelete(item.id, e)}
+                                        className="p-1 rounded hover:bg-red-100 dark:hover:bg-red-900/20"
+                                      >
+                                        <FiTrash2 className="w-3 h-3 text-red-500" />
+                                      </button>
+                                    )}
+                                  </div>
+                                </div>
+                                <div className="text-[12px] truncate leading-tight text-[#5f6368] dark:text-[#9aa0a6]">
+                                  {item.message.length > 30 ? item.message.substring(0, 30) + '...' : item.message}
+                                </div>
+                              </>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </>
+            )}
+          </div>
+        )}
       </div>
 
       {/* Settings Only Footer */}

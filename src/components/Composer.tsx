@@ -2,9 +2,12 @@ import { useState, useRef, useEffect, useMemo } from "react";
 import { Snackbar, Alert, Slide } from "@mui/material";
 import { sendSms, sendBulkSms } from "../api/sms";
 import { fetchContacts } from "../api/contacts";
+import { saveBulkMessage } from "../utils/storage";
+import type { BulkMessageHistoryItem } from "../types/Sms";
 import type { Contact } from "../types/Contact";
 import { FiUser, FiUsers } from "react-icons/fi";
 import ShinyText from "./ShinyText";
+import { DotLottieReact } from "@lottiefiles/dotlottie-react";
 
 interface ComposerProps {
   selectedContacts: Contact[];
@@ -25,6 +28,7 @@ export const Composer: React.FC<ComposerProps> = ({ selectedContacts, isNewMessa
   const [loading, setLoading] = useState(false);
   const [messages, setMessages] = useState<SentMessage[]>([]);
   const [expandedMessageId, setExpandedMessageId] = useState<string | null>(null);
+  const [lottieError, setLottieError] = useState(false);
 
   // Single SMS state
 
@@ -241,6 +245,19 @@ export const Composer: React.FC<ComposerProps> = ({ selectedContacts, isNewMessa
           const results = await sendBulkSms(phones, message);
           const successCount = results.filter(r => r.success).length;
           smsResult = { success: successCount > 0, message: `Sent ${successCount} of ${recipients.length} messages` };
+          
+          // Save to bulk message history
+          const bulkItem: BulkMessageHistoryItem = {
+            id: `bulk-${Date.now()}`,
+            message: message,
+            recipientCount: recipients.length,
+            recipientNames: recipients.map(r => r.name),
+            timestamp: new Date().toISOString(),
+            status: successCount === recipients.length ? 'sent' : successCount > 0 ? 'partial' : 'failed'
+          };
+          saveBulkMessage(bulkItem);
+          // Dispatch custom event to notify Sidebar
+          window.dispatchEvent(new Event('bulk-message-sent'));
         }
       } else {
         if (composeMode === "single") {
@@ -250,6 +267,19 @@ export const Composer: React.FC<ComposerProps> = ({ selectedContacts, isNewMessa
           const results = await sendBulkSms(phones, message);
           const successCount = results.filter(r => r.success).length;
           smsResult = { success: successCount > 0, message: `Sent ${successCount} of ${recipients.length} messages` };
+          
+          // Save to bulk message history
+          const bulkItem: BulkMessageHistoryItem = {
+            id: `bulk-${Date.now()}`,
+            message: message,
+            recipientCount: recipients.length,
+            recipientNames: recipients.map(r => r.name),
+            timestamp: new Date().toISOString(),
+            status: successCount === recipients.length ? 'sent' : successCount > 0 ? 'partial' : 'failed'
+          };
+          saveBulkMessage(bulkItem);
+          // Dispatch custom event to notify Sidebar
+          window.dispatchEvent(new Event('bulk-message-sent'));
         }
       }
 
@@ -482,11 +512,24 @@ export const Composer: React.FC<ComposerProps> = ({ selectedContacts, isNewMessa
         <div className="max-w-5xl mx-auto w-full h-full flex flex-col">
         {messages.length === 0 ? (
           <div className="flex-1 flex flex-col items-center justify-center">
-            <div className="w-24 h-24 mb-6 rounded-[2.5rem] bg-gradient-to-br from-[#2b83fa]/10 to-[#60a5fa]/5 dark:from-[#2b83fa]/20 dark:to-[#60a5fa]/5 flex items-center justify-center border border-[#2b83fa]/10 dark:border-[#2b83fa]/20 shadow-inner">
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-10 w-10 text-[#2b83fa]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
-              </svg>
-            </div>
+            {isNewMessage && !lottieError ? (
+              <DotLottieReact
+                src="https://lottie.host/8bff6661-62db-4473-adb8-7eced34f3649/mii3gOOlir.lottie"
+                loop
+                autoplay
+                className="w-40 h-40 md:w-56 md:h-56 mb-1"
+                onError={(error) => {
+                  console.error('Lottie load error:', error);
+                  setLottieError(true);
+                }}
+              />
+            ) : (
+              <div className="w-24 h-24 mb-6 rounded-[2.5rem] bg-gradient-to-br from-[#2b83fa]/10 to-[#60a5fa]/5 dark:from-[#2b83fa]/20 dark:to-[#60a5fa]/5 flex items-center justify-center border border-[#2b83fa]/10 dark:border-[#2b83fa]/20 shadow-inner">
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-10 w-10 text-[#2b83fa]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
+                </svg>
+              </div>
+            )}
             <h3 className="text-[19px] font-bold text-[#111111] dark:text-[#ececf1] mb-2 tracking-tight">
               {isNewMessage ? (composeMode === "bulk" ? "New Broadcast" : "New Message") : "Sent Messages"}
             </h3>

@@ -356,7 +356,7 @@ export const ContactsTab: React.FC<ContactsTabProps> = ({ onSendToComposer }) =>
             <p className="text-[13px] sm:text-[14px] text-gray-500 dark:text-gray-400 text-center mb-6">
               Are you sure you want to delete this contact? This action cannot be undone.
             </p>
-            <div className="flex flex-col sm:flex-row items-center gap-3">
+            <div className="flex flex-col-reverse sm:flex-row items-center gap-3">
               <button
                 onClick={() => setDeleteConfirmId(null)}
                 className="w-full sm:flex-1 px-4 py-2.5 text-[14px] font-semibold text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-white/5 rounded-xl transition-colors"
@@ -386,7 +386,12 @@ export const ContactsTab: React.FC<ContactsTabProps> = ({ onSendToComposer }) =>
           />
           <div className="relative w-full max-w-md bg-white dark:bg-[#1a1b1e] rounded-2xl shadow-2xl p-4 sm:p-6 animate-in zoom-in-95 duration-200">
             <div className="flex items-center justify-between mb-4 sm:mb-6">
-              <h3 className="text-[16px] sm:text-[18px] font-bold text-[#111111] dark:text-[#ececf1]">Add New Contact</h3>
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 rounded-lg bg-[#2b83fa]/10 dark:bg-[#2b83fa]/20 flex items-center justify-center">
+                  <FiUser className="h-4 w-4 text-[#2b83fa]" />
+                </div>
+                <h3 className="text-[16px] sm:text-[18px] font-bold text-[#111111] dark:text-[#ececf1]">Add New Contact</h3>
+              </div>
               <button
                 onClick={() => setIsAddModalOpen(false)}
                 className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-white/5 text-gray-500 transition-colors"
@@ -442,7 +447,7 @@ export const ContactsTab: React.FC<ContactsTabProps> = ({ onSendToComposer }) =>
               </div>
             </div>
 
-            <div className="flex flex-col sm:flex-row items-center gap-3 sm:gap-3 mt-4 sm:mt-6">
+            <div className="flex flex-col-reverse sm:flex-row items-center gap-3 sm:gap-3 mt-4 sm:mt-6">
               <button
                 onClick={() => setIsAddModalOpen(false)}
                 className="w-full sm:flex-1 px-4 py-3 text-[14px] font-semibold text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-white/5 rounded-xl transition-colors"
