@@ -1,7 +1,6 @@
 import type { BulkMessageHistoryItem } from "../types/Sms";
 
 const BULK_HISTORY_KEY = "nola_sms_bulk_history";
-const CONTACTS_KEY = "nola_sms_contacts";
 const DELETED_CONTACTS_KEY = "nola_sms_deleted_contacts";
 
 export const getDeletedContactIds = (): string[] => {
