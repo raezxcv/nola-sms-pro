@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo } from "react";
 import { fetchContacts } from "../api/contacts";
 import type { Contact } from "../types/Contact";
-import { FiSearch, FiX, FiMail, FiCheck, FiUser, FiPlus, FiTrash2 } from "react-icons/fi";
+import { FiSearch, FiX, FiMail, FiCheck, FiUser, FiPlus, FiTrash2, FiMoreVertical, FiEdit2 } from "react-icons/fi";
 
 interface ContactsTabProps {
   onSendToComposer: (contacts: Contact[]) => void;
@@ -16,12 +16,21 @@ export const ContactsTab: React.FC<ContactsTabProps> = ({ onSendToComposer }) =>
   const [newContactName, setNewContactName] = useState("");
   const [newContactPhone, setNewContactPhone] = useState("");
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
+  const [openMenuId, setOpenMenuId] = useState<string | null>(null);
+  const [editingContact, setEditingContact] = useState<Contact | null>(null);
 
   useEffect(() => {
     fetchContacts()
       .then(setContacts)
       .catch(console.error)
       .finally(() => setLoading(false));
+  }, []);
+
+  // Close menu when clicking outside
+  useEffect(() => {
+    const handleClickOutside = () => setOpenMenuId(null);
+    document.addEventListener('click', handleClickOutside);
+    return () => document.removeEventListener('click', handleClickOutside);
   }, []);
 
   const filteredContacts = useMemo(() => {
@@ -90,6 +99,25 @@ export const ContactsTab: React.FC<ContactsTabProps> = ({ onSendToComposer }) =>
     setNewContactName("");
     setNewContactPhone("");
     setIsAddModalOpen(false);
+  };
+
+  const handleEditContact = () => {
+    if (!editingContact) return;
+    const digits = editingContact.phone.replace(/\D/g, "");
+    if (!editingContact.name.trim() || digits.length < 7) return;
+    
+    // Update contact in list
+    setContacts((prev) => prev.map((c) => 
+      c.id === editingContact.id ? editingContact : c
+    ));
+    
+    // Update selected contacts if this one was selected
+    setSelectedContacts((prev) => prev.map((c) => 
+      c.id === editingContact.id ? editingContact : c
+    ));
+    
+    // Close modal
+    setEditingContact(null);
   };
 
   const handleDeleteContact = (contactId: string, e?: React.MouseEvent) => {
@@ -169,7 +197,7 @@ export const ContactsTab: React.FC<ContactsTabProps> = ({ onSendToComposer }) =>
               >
                 <FiCheck className="h-3.5 w-3.5" />
                 <span className="hidden sm:inline">{isAllSelected ? "Deselect All" : "Select All"}</span>
-                <span className="sm:hidden">{isAllSelected ? "Deselect" : "Select"}</span>
+                <span className="sm:hidden">{isAllSelected ? "Deselect All" : "Select All"}</span>
               </button>
               {selectedContacts.length > 0 && (
                 <button
@@ -260,7 +288,7 @@ export const ContactsTab: React.FC<ContactsTabProps> = ({ onSendToComposer }) =>
                             {(() => {
                               const parts = contact.name.split(" ").filter((p) => p.length > 0);
                               const first = parts[0]?.charAt(0) || "";
-                              const last = parts[1]?.charAt(0) || "";
+                              const last = parts.length > 1 ? parts[parts.length - 1]?.charAt(0) || "" : "";
                               return (first + last).toUpperCase() || "?";
                             })()}
                           </div>
@@ -289,17 +317,48 @@ export const ContactsTab: React.FC<ContactsTabProps> = ({ onSendToComposer }) =>
                             </div>
                           )}
 
-                          {/* Delete button */}
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setDeleteConfirmId(contact.id);
-                            }}
-                            className="p-2 rounded-lg hover:bg-red-50 dark:hover:bg-red-500/10 text-gray-400 hover:text-red-500 transition-all duration-200"
-                            title="Delete contact"
-                          >
-                            <FiTrash2 className="h-4 w-4" />
-                          </button>
+                          {/* More button with dropdown */}
+                          <div className="relative">
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setOpenMenuId(openMenuId === contact.id ? null : contact.id);
+                              }}
+                              className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-white/5 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-all duration-200"
+                              title="More options"
+                            >
+                              <FiMoreVertical className="h-4 w-4" />
+                            </button>
+                            {openMenuId === contact.id && (
+                              <div 
+                                className="absolute right-0 top-full mt-1 bg-white dark:bg-[#2d2d2d] rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 py-1 min-w-[120px] z-50"
+                                onClick={(e) => e.stopPropagation()}
+                              >
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setEditingContact(contact);
+                                    setOpenMenuId(null);
+                                  }}
+                                  className="w-full px-3 py-2 text-left text-[13px] text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-white/5 flex items-center gap-2"
+                                >
+                                  <FiEdit2 className="w-4 h-4" />
+                                  Edit
+                                </button>
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setDeleteConfirmId(contact.id);
+                                    setOpenMenuId(null);
+                                  }}
+                                  className="w-full px-3 py-2 text-left text-[13px] text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 flex items-center gap-2"
+                                >
+                                  <FiTrash2 className="w-4 h-4" />
+                                  Delete
+                                </button>
+                              </div>
+                            )}
+                          </div>
                         </div>
                       );
                     })}
@@ -461,6 +520,98 @@ export const ContactsTab: React.FC<ContactsTabProps> = ({ onSendToComposer }) =>
               >
                 <FiPlus className="h-4 w-4" />
                 Add Contact
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Edit Contact Modal */}
+      {editingContact && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div 
+            className="absolute inset-0 bg-black/50 backdrop-blur-sm"
+            onClick={() => setEditingContact(null)}
+          />
+          <div className="relative w-full max-w-md bg-white dark:bg-[#1a1b1e] rounded-2xl shadow-2xl p-4 sm:p-6 animate-in zoom-in-95 duration-200">
+            <div className="flex items-center justify-between mb-4 sm:mb-6">
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 rounded-lg bg-[#2b83fa]/10 dark:bg-[#2b83fa]/20 flex items-center justify-center">
+                  <FiEdit2 className="h-4 w-4 text-[#2b83fa]" />
+                </div>
+                <h3 className="text-[16px] sm:text-[18px] font-bold text-[#111111] dark:text-[#ececf1]">Edit Contact</h3>
+              </div>
+              <button
+                onClick={() => setEditingContact(null)}
+                className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-white/5 text-gray-500 transition-colors"
+              >
+                <FiX className="h-5 w-5" />
+              </button>
+            </div>
+            
+            <div className="space-y-4">
+              <div>
+                <label className="block text-[11px] sm:text-[12px] font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">
+                  Name
+                </label>
+                <input
+                  type="text"
+                  value={editingContact.name}
+                  onChange={(e) => setEditingContact({ ...editingContact, name: e.target.value })}
+                  placeholder="Enter contact name"
+                  className="w-full px-3 sm:px-4 py-2.5 sm:py-3 bg-gray-50 dark:bg-[#111111] border border-gray-200/60 dark:border-white/10 rounded-xl text-[14px] font-medium text-[#111111] dark:text-[#ececf1] placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#2b83fa]/20 focus:border-[#2b83fa] transition-all"
+                />
+              </div>
+              
+              <div>
+                <label className="block text-[11px] sm:text-[12px] font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">
+                  Phone Number
+                </label>
+                <div className="relative">
+                  {editingContact.phone === '' || !editingContact.phone.startsWith('0') ? (
+                    <span className="absolute left-3 sm:left-4 top-1/2 -translate-y-1/2 text-[14px] font-medium text-gray-500 dark:text-gray-400">+63</span>
+                  ) : null}
+                  <input
+                    type="tel"
+                    inputMode="tel"
+                    value={editingContact.phone}
+                    onChange={(e) => {
+                      // Only allow numbers
+                      const digits = e.target.value.replace(/\D/g, "");
+                      // Format: XXXX XXX XXXX (11 digits after +63)
+                      let formatted = "";
+                      if (digits.length > 0) {
+                        formatted = digits.substring(0, 11);
+                        // Apply formatting
+                        if (formatted.length > 7) {
+                          formatted = `${formatted.slice(0, 4)} ${formatted.slice(4, 7)} ${formatted.slice(7)}`;
+                        } else if (formatted.length > 3) {
+                          formatted = `${formatted.slice(0, 3)} ${formatted.slice(3)}`;
+                        }
+                      }
+                      setEditingContact({ ...editingContact, phone: formatted });
+                    }}
+                    placeholder="912 345 6789"
+                    className={`w-full px-3 sm:px-4 py-2.5 sm:py-3 bg-gray-50 dark:bg-[#111111] border border-gray-200/60 dark:border-white/10 rounded-xl text-[14px] font-medium text-[#111111] dark:text-[#ececf1] placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#2b83fa]/20 focus:border-[#2b83fa] transition-all ${editingContact.phone === '' || !editingContact.phone.startsWith('0') ? 'pl-12 sm:pl-16' : 'pl-3 sm:pl-4'}`}
+                  />
+                </div>
+              </div>
+            </div>
+
+            <div className="flex flex-col-reverse sm:flex-row items-center gap-3 sm:gap-3 mt-4 sm:mt-6">
+              <button
+                onClick={() => setEditingContact(null)}
+                className="w-full sm:flex-1 px-4 py-3 text-[14px] font-semibold text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-white/5 rounded-xl transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleEditContact}
+                disabled={!editingContact.name.trim() || editingContact.phone.replace(/\D/g, "").length < 7}
+                className="w-full sm:flex-1 flex items-center justify-center gap-2 px-4 py-3 bg-[#2b83fa] hover:bg-[#1d6bd4] disabled:bg-gray-300 dark:disabled:bg-gray-600 disabled:cursor-not-allowed text-white disabled:text-gray-500 dark:disabled:text-gray-400 rounded-xl font-semibold text-[14px] transition-all duration-200"
+              >
+                <FiCheck className="h-4 w-4" />
+                Save Changes
               </button>
             </div>
           </div>

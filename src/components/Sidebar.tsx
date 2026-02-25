@@ -4,7 +4,7 @@ import type { Contact } from "../types/Contact";
 import type { BulkMessageHistoryItem } from "../types/Sms";
 import { getBulkMessageHistory, renameBulkMessage, deleteBulkMessage, deleteContact, getDeletedContactIds } from "../utils/storage";
 import { TbLayoutSidebarLeftCollapse, TbLayoutSidebarRightCollapse } from "react-icons/tb";
-import { FiUsers, FiChevronDown, FiEdit2, FiTrash2 } from "react-icons/fi";
+import { FiUsers, FiChevronDown, FiEdit2, FiTrash2, FiMoreVertical } from "react-icons/fi";
 
 export type ViewTab = 'compose' | 'contacts' | 'templates' | 'settings';
 
@@ -33,8 +33,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
   const [bulkMessagesExpanded, setBulkMessagesExpanded] = useState(true);
   const [editingBulkId, setEditingBulkId] = useState<string | null>(null);
   const [editingBulkName, setEditingBulkName] = useState("");
-  const [deletingBulkId, setDeletingBulkId] = useState<string | null>(null);
   const [deletingContactId, setDeletingContactId] = useState<string | null>(null);
+  const [openMenuId, setOpenMenuId] = useState<string | null>(null);
 
   useEffect(() => {
     fetchContacts().then(data => {
@@ -51,6 +51,13 @@ export const Sidebar: React.FC<SidebarProps> = ({
     return () => {
       window.removeEventListener('bulk-message-sent', handleBulkMessageSent);
     };
+  }, []);
+
+  // Close menu when clicking outside
+  useEffect(() => {
+    const handleClickOutside = () => setOpenMenuId(null);
+    document.addEventListener('click', handleClickOutside);
+    return () => document.removeEventListener('click', handleClickOutside);
   }, []);
 
   // Handler functions for bulk message CRUD
@@ -70,19 +77,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
   const handleDelete = (id: string, e: React.MouseEvent) => {
     e.stopPropagation();
-    setDeletingBulkId(id);
-  };
-
-  const confirmDelete = () => {
-    if (deletingBulkId) {
-      deleteBulkMessage(deletingBulkId);
-      setBulkHistory(getBulkMessageHistory());
-      setDeletingBulkId(null);
-    }
-  };
-
-  const cancelDelete = () => {
-    setDeletingBulkId(null);
+    deleteBulkMessage(id);
+    setBulkHistory(getBulkMessageHistory());
   };
 
   const handleDeleteContact = (id: string, e: React.MouseEvent) => {
@@ -247,13 +243,13 @@ export const Sidebar: React.FC<SidebarProps> = ({
             </div>
 
             {/* Direct Messages Content - Not scrollable, part of main scroll */}
-            <div className={`overflow-hidden transition-all duration-300 ${directMessagesExpanded ? 'max-h-[500px] opacity-100 mb-2' : 'max-h-0 opacity-0'}`}>
+            <div className={`overflow-visible transition-all duration-300 ${directMessagesExpanded ? 'max-h-[500px] opacity-100 mb-2' : 'max-h-0 opacity-0'}`}>
               <div className="flex flex-col gap-0.5">
               {contacts.map(contact => (
                 <div
                   key={contact.id}
                   className={`
-                     group relative transition-all duration-300
+                     group relative transition-all duration-300 overflow-visible
                      px-3 py-3 rounded-2xl cursor-pointer mb-0.5
                      ${activeContactId === contact.id
                      ? 'bg-white dark:bg-[#1c1e21] shadow-[0_4px_15px_rgba(0,0,0,0.05)] dark:shadow-[0_10px_30px_rgba(0,0,0,0.3)] ring-1 ring-[#00000005] dark:ring-[#ffffff05]'
@@ -309,12 +305,35 @@ export const Sidebar: React.FC<SidebarProps> = ({
                               </button>
                             </div>
                           ) : (
-                            <button
-                              onClick={(e) => handleDeleteContact(contact.id, e)}
-                              className="p-1 rounded opacity-0 group-hover:opacity-100 hover:bg-red-100 dark:hover:bg-red-900/20"
-                            >
-                              <FiTrash2 className="w-3 h-3 text-red-500" />
-                            </button>
+                            <div className="relative">
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setOpenMenuId(openMenuId === contact.id ? null : contact.id);
+                                }}
+                                className="p-1 rounded hover:bg-[#e8e8e8] dark:hover:bg-[#3c4043]"
+                              >
+                                <FiMoreVertical className="w-3 h-3 text-[#5f6368] dark:text-[#9aa0a6]" />
+                              </button>
+                              {openMenuId === contact.id && (
+                                <div 
+                                  className="absolute right-0 top-full mt-1 bg-white dark:bg-[#2d2d2d] rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 py-1 min-w-[100px] z-50"
+                                  onClick={(e) => e.stopPropagation()}
+                                >
+                                  <button
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      handleDeleteContact(contact.id, e);
+                                      setOpenMenuId(null);
+                                    }}
+                                    className="w-full px-3 py-1.5 text-left text-[12px] text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 flex items-center gap-2"
+                                  >
+                                    <FiTrash2 className="w-3 h-3" />
+                                    Delete
+                                  </button>
+                                </div>
+                              )}
+                            </div>
                           )}
                         </div>
                       </div>
@@ -342,7 +361,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
               </div>
 
               {/* Bulk Messages Content - Not scrollable, part of main scroll */}
-              <div className={`overflow-hidden transition-all duration-300 ${bulkMessagesExpanded ? 'max-h-[500px] opacity-100' : 'max-h-0 opacity-0'}`}>
+              <div className={`overflow-visible transition-all duration-300 ${bulkMessagesExpanded ? 'max-h-[500px] opacity-100' : 'max-h-0 opacity-0'}`}>
                 <div className="flex flex-col gap-0.5">
                   {bulkHistory.length > 0 ? (
                     bulkHistory.map(item => (
@@ -350,7 +369,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                         key={item.id}
                         className={`
                           group relative transition-all duration-200 rounded-lg mx-1
-                          px-2 py-2 cursor-pointer
+                          px-2 py-2 cursor-pointer overflow-visible
                           hover:bg-[#f1f3f4] dark:hover:bg-[#303134]
                         `}
                         onClick={() => {
@@ -389,43 +408,47 @@ export const Sidebar: React.FC<SidebarProps> = ({
                                   <span className="text-[13px] truncate font-medium text-[#3c4043] dark:text-[#e8eaed]">
                                     {getBulkDisplayName(item)}
                                   </span>
-                                  <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                                    <button
-                                      onClick={(e) => {
-                                        e.stopPropagation();
-                                        handleStartEdit(item);
-                                      }}
-                                      className="p-1 rounded hover:bg-[#e8e8e8] dark:hover:bg-[#3c4043]"
-                                    >
-                                      <FiEdit2 className="w-3 h-3 text-[#5f6368] dark:text-[#9aa0a6]" />
-                                    </button>
-                                    {deletingBulkId === item.id ? (
-                                      <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
-                                        <button
-                                          onClick={confirmDelete}
-                                          className="p-1 rounded bg-red-500 text-white hover:bg-red-600"
-                                        >
-                                          <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                                          </svg>
-                                        </button>
-                                        <button
-                                          onClick={cancelDelete}
-                                          className="p-1 rounded bg-gray-300 dark:bg-gray-600 text-gray-700 dark:text-gray-200 hover:bg-gray-400 dark:hover:bg-gray-500"
-                                        >
-                                          <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                                          </svg>
-                                        </button>
-                                      </div>
-                                    ) : (
+                                  <div className="flex items-center gap-1">
+                                    <div className="relative">
                                       <button
-                                        onClick={(e) => handleDelete(item.id, e)}
-                                        className="p-1 rounded hover:bg-red-100 dark:hover:bg-red-900/20"
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          setOpenMenuId(openMenuId === item.id ? null : item.id);
+                                        }}
+                                        className="p-1.5 rounded hover:bg-[#e8e8e8] dark:hover:bg-[#3c4043]"
                                       >
-                                        <FiTrash2 className="w-3 h-3 text-red-500" />
+                                        <FiMoreVertical className="w-4 h-4 text-[#5f6368] dark:text-[#9aa0a6]" />
                                       </button>
-                                    )}
+                                      {openMenuId === item.id && (
+                                        <div 
+                                          className="absolute right-0 top-full mt-1 bg-white dark:bg-[#2d2d2d] rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 py-1 min-w-[100px] z-50"
+                                          onClick={(e) => e.stopPropagation()}
+                                        >
+                                          <button
+                                            onClick={(e) => {
+                                              e.stopPropagation();
+                                              handleStartEdit(item);
+                                              setOpenMenuId(null);
+                                            }}
+                                            className="w-full px-3 py-1.5 text-left text-[12px] text-[#5f6368] dark:text-[#9aa0a6] hover:bg-[#f1f3f4] dark:hover:bg-[#3c4043] flex items-center gap-2"
+                                          >
+                                            <FiEdit2 className="w-3 h-3" />
+                                            Edit
+                                          </button>
+                                          <button
+                                            onClick={(e) => {
+                                              e.stopPropagation();
+                                              handleDelete(item.id, e);
+                                              setOpenMenuId(null);
+                                            }}
+                                            className="w-full px-3 py-1.5 text-left text-[12px] text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 flex items-center gap-2"
+                                          >
+                                            <FiTrash2 className="w-3 h-3" />
+                                            Delete
+                                          </button>
+                                        </div>
+                                      )}
+                                    </div>
                                   </div>
                                 </div>
                                 <div className="text-[12px] truncate leading-tight text-[#5f6368] dark:text-[#9aa0a6]">
