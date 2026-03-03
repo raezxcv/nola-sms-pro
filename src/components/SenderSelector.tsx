@@ -205,6 +205,7 @@ export const SenderSelector: React.FC<SenderSelectorProps> = ({
                                 onClick={() => {
                                     setIsOpen(false);
                                     setIsAdding(true);
+                                    onRequestSettings?.();
                                 }}
                                 className="w-full flex items-center gap-3 p-2 rounded-xl hover:bg-[#2b83fa]/5 text-[#2b83fa] transition-all group"
                             >
