@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect, useMemo } from "react";
 import { Snackbar, Alert, Slide } from "@mui/material";
-import { sendSms, sendBulkSms } from "../api/sms";
+import { sendSms, sendBulkSms, type SenderId } from "../api/sms";
 import { fetchContacts } from "../api/contacts";
 import { saveBulkMessage } from "../utils/storage";
 import type { BulkMessageHistoryItem } from "../types/Sms";
@@ -8,29 +8,29 @@ import type { Contact } from "../types/Contact";
 import { FiUser, FiUsers } from "react-icons/fi";
 import ShinyText from "./ShinyText";
 import { DotLottieReact } from "@lottiefiles/dotlottie-react";
+import { useMessages } from "../hooks/useMessages";
+import { SenderSelector } from "./SenderSelector";
 
 interface ComposerProps {
   selectedContacts: Contact[];
   isNewMessage?: boolean;
   activeContact?: Contact | null;
+  onSelectContact?: (contact: Contact) => void;
+  onSelectBulkMessage?: (item: BulkMessageHistoryItem) => void;
 }
 
-interface SentMessage {
-  id: string;
-  text: string;
-  timestamp: Date;
-  senderName: string;
-  status: 'sending' | 'sent' | 'delivered' | 'failed';
-}
-
-export const Composer: React.FC<ComposerProps> = ({ selectedContacts, isNewMessage = true, activeContact }) => {
+export const Composer: React.FC<ComposerProps> = ({
+  selectedContacts,
+  isNewMessage = true,
+  activeContact,
+  onSelectContact,
+  onSelectBulkMessage
+}) => {
   const [message, setMessage] = useState("");
   const [loading, setLoading] = useState(false);
-  const [messages, setMessages] = useState<SentMessage[]>([]);
+  const [senderName, setSenderName] = useState<SenderId>("NOLACRM");
   const [expandedMessageId, setExpandedMessageId] = useState<string | null>(null);
   const [lottieError, setLottieError] = useState(false);
-
-  // Single SMS state
 
   // Bulk SMS state
   const [composeMode, setComposeMode] = useState<"single" | "bulk">("single");
@@ -38,6 +38,15 @@ export const Composer: React.FC<ComposerProps> = ({ selectedContacts, isNewMessa
   const [searchQuery, setSearchQuery] = useState("");
   const [bulkSelectedContacts, setBulkSelectedContacts] = useState<Contact[]>([]);
   const [isPickerOpen, setIsPickerOpen] = useState(false);
+
+  const activePhoneNumber = useMemo(() => {
+    if (activeContact) return activeContact.phone;
+    if (selectedContacts.length === 1) return selectedContacts[0].phone;
+    return undefined;
+  }, [activeContact, selectedContacts]);
+
+  const { messages, loading: historyLoading, addOptimisticMessage, updateMessageStatus } = useMessages(activePhoneNumber);
+
   const dropdownRef = useRef<HTMLDivElement>(null);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -52,7 +61,7 @@ export const Composer: React.FC<ComposerProps> = ({ selectedContacts, isNewMessa
   const [toastOpen, setToastOpen] = useState(false);
   const [toastSeverity, setToastSeverity] = useState<"success" | "error">("success");
   const [toastMessage, setToastMessage] = useState("");
-  
+
   // Show disabled reason state
   const [showDisabledReason, setShowDisabledReason] = useState(false);
 
@@ -204,103 +213,71 @@ export const Composer: React.FC<ComposerProps> = ({ selectedContacts, isNewMessa
     const recipients = getActiveRecipients();
 
     if (!message) {
-      // Show disabled reason
       setShowDisabledReason(true);
       setTimeout(() => setShowDisabledReason(false), 3000);
       return;
     }
-    if (isNewMessage && recipients.length === 0) {
-      // Show disabled reason
-      setShowDisabledReason(true);
-      setTimeout(() => setShowDisabledReason(false), 3000);
-      return;
-    }
-    if (!isNewMessage && recipients.length === 0) {
-      // Show disabled reason
+    if (recipients.length === 0) {
       setShowDisabledReason(true);
       setTimeout(() => setShowDisabledReason(false), 3000);
       return;
     }
 
     setLoading(true);
-    // Clear message text immediately when clicking send
+    const messageText = message;
     setMessage("");
     setAttachedFiles([]);
+
     try {
-      const newMessage: SentMessage = {
-        id: Date.now().toString(),
-        text: message,
-        timestamp: new Date(),
-        senderName: 'NOLACRM',
-        status: 'sending',
-      };
-      setMessages(prev => [...prev, newMessage]);
+      if (recipients.length === 1) {
+        // Optimistic update for single message
+        const tempId = addOptimisticMessage(messageText, senderName);
+        const smsResult = await sendSms(recipients[0].phone, messageText, senderName);
 
-      let smsResult: { success?: boolean; message?: string } | undefined;
-      if (!isNewMessage) {
-        if (recipients.length === 1) {
-          smsResult = await sendSms(recipients[0].phone, message);
-        } else if (recipients.length > 1) {
-          const phones = recipients.map(c => c.phone);
-          const results = await sendBulkSms(phones, message);
-          const successCount = results.filter(r => r.success).length;
-          smsResult = { success: successCount > 0, message: `Sent ${successCount} of ${recipients.length} messages` };
-          
-          // Save to bulk message history
-          const bulkItem: BulkMessageHistoryItem = {
-            id: `bulk-${Date.now()}`,
-            message: message,
-            recipientCount: recipients.length,
-            recipientNames: recipients.map(r => r.name),
-            timestamp: new Date().toISOString(),
-            status: successCount === recipients.length ? 'sent' : successCount > 0 ? 'partial' : 'failed'
-          };
-          saveBulkMessage(bulkItem);
-          // Dispatch custom event to notify Sidebar
-          window.dispatchEvent(new Event('bulk-message-sent'));
-        }
-      } else {
-        if (composeMode === "single") {
-          smsResult = await sendSms(recipients[0].phone, message);
+        if (smsResult.success) {
+          updateMessageStatus(tempId, 'sent');
+          setToastSeverity("success");
+          setToastMessage(smsResult.message || "Message sent successfully!");
+
+          // Navigate to contact view if not already there
+          if (isNewMessage && onSelectContact && recipients[0]) {
+            setTimeout(() => onSelectContact(recipients[0]), 500);
+          }
         } else {
-          const phones = recipients.map(c => c.phone);
-          const results = await sendBulkSms(phones, message);
-          const successCount = results.filter(r => r.success).length;
-          smsResult = { success: successCount > 0, message: `Sent ${successCount} of ${recipients.length} messages` };
-          
-          // Save to bulk message history
-          const bulkItem: BulkMessageHistoryItem = {
-            id: `bulk-${Date.now()}`,
-            message: message,
-            recipientCount: recipients.length,
-            recipientNames: recipients.map(r => r.name),
-            timestamp: new Date().toISOString(),
-            status: successCount === recipients.length ? 'sent' : successCount > 0 ? 'partial' : 'failed'
-          };
-          saveBulkMessage(bulkItem);
-          // Dispatch custom event to notify Sidebar
-          window.dispatchEvent(new Event('bulk-message-sent'));
+          updateMessageStatus(tempId, 'failed');
+          setToastSeverity("error");
+          setToastMessage(smsResult.message || "Failed to send message");
         }
-      }
-
-      // Update message status based on result
-      setMessages(prev => prev.map(msg => 
-        msg.id === newMessage.id 
-          ? { ...msg, status: smsResult?.success === true ? 'sent' : 'failed' }
-          : msg
-      ));
-
-      if (!smsResult?.success) {
-        setToastSeverity("error");
-        setToastMessage(smsResult?.message || "Failed to send message");
       } else {
-        setToastSeverity("success");
-        setToastMessage(smsResult?.message || "Message sent successfully!");
-        setMessage("");
-        if (composeMode === "single" && !activeContact) {
-          // No-op for now as we use chips
+        // Bulk SMS sending
+        const phones = recipients.map(c => c.phone);
+        const results = await sendBulkSms(phones, messageText, senderName);
+        const successCount = results.filter(r => r.success).length;
+
+        // Save to bulk message history
+        const bulkItem: BulkMessageHistoryItem = {
+          id: `bulk-${Date.now()}`,
+          message: messageText,
+          recipientCount: recipients.length,
+          recipientNames: recipients.map(r => r.name),
+          timestamp: new Date().toISOString(),
+          status: successCount === recipients.length ? 'sent' : successCount > 0 ? 'partial' : 'failed'
+        };
+        saveBulkMessage(bulkItem);
+        window.dispatchEvent(new Event('bulk-message-sent'));
+
+        if (successCount > 0) {
+          setToastSeverity("success");
+          setToastMessage(`Sent ${successCount} of ${recipients.length} messages`);
+
+          // Navigate to bulk history if not already there
+          if (isNewMessage && onSelectBulkMessage) {
+            setTimeout(() => onSelectBulkMessage(bulkItem), 500);
+          }
+        } else {
+          setToastSeverity("error");
+          setToastMessage("Failed to send bulk messages");
         }
-        setAttachedFiles([]);
       }
       setToastOpen(true);
     } catch (error) {
@@ -351,46 +328,75 @@ export const Composer: React.FC<ComposerProps> = ({ selectedContacts, isNewMessa
     <div className="flex flex-col h-full bg-[#f9fafb] dark:bg-[#111111] relative overflow-hidden transition-colors duration-300">
       {/* 1. Header & Recipient Area (Sticky) */}
       <div className="flex-shrink-0 z-30 bg-white/80 dark:bg-[#1a1b1e]/80 backdrop-blur-xl border-b border-gray-200/60 dark:border-white/5 shadow-sm">
-        {isNewMessage && (
-          <div className="max-w-5xl mx-auto px-6 pt-4 pb-2">
-            <div className="flex items-center justify-between mb-4">
+        {activePhoneNumber ? (
+          /* Chat Header for specific contact */
+          <div className="max-w-5xl mx-auto px-4 sm:px-6 py-3 sm:py-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div className="flex items-center gap-3 sm:gap-4 min-w-0">
+              <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-gradient-to-br from-[#2b83fa] to-[#60a5fa] flex-shrink-0 flex items-center justify-center text-white font-bold text-base sm:text-lg shadow-md shadow-blue-500/10">
+                {(activeContact?.name || selectedContacts[0]?.name || "?").charAt(0).toUpperCase()}
+              </div>
+              <div className="flex flex-col min-w-0">
+                <h2 className="text-[15px] sm:text-[17px] font-bold text-[#111111] dark:text-[#ececf1] leading-tight tracking-tight truncate">
+                  {activeContact?.name || selectedContacts[0]?.name}
+                </h2>
+                <span className="text-[12px] sm:text-[13px] text-gray-500 dark:text-gray-400 font-medium truncate">
+                  {activePhoneNumber}
+                </span>
+              </div>
+            </div>
+
+            {/* Consistently styled Sender Selection */}
+            <div className="flex justify-end sm:contents">
+              <SenderSelector
+                value={senderName}
+                onChange={setSenderName}
+              />
+            </div>
+          </div>
+        ) : (
+          /* New Message / Bulk Header */
+          <div className="max-w-5xl mx-auto px-4 sm:px-6 pt-4 pb-2">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-4 gap-3">
               <div className="flex items-center gap-2.5">
                 <div className="w-8 h-8 rounded-lg bg-[#2b83fa] flex items-center justify-center text-white shadow-lg shadow-blue-500/20">
                   <svg xmlns="http://www.w3.org/2000/svg" className="h-[18px] w-[18px]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.2}>
                     <path strokeLinecap="round" strokeLinejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0115.75 21H5.25A2.25 2.25 0 013 18.75V8.25A2.25 2.25 0 015.25 6H10" />
                   </svg>
                 </div>
-                <h2 className="text-[17px] font-bold text-[#111111] dark:text-[#ececf1] tracking-tight">New Message</h2>
+                <h2 className="text-[16px] sm:text-[17px] font-bold text-[#111111] dark:text-[#ececf1] tracking-tight">New Message</h2>
               </div>
 
-              {/* Compact Toggle */}
-              <div className="flex p-0.5 bg-gray-100 dark:bg-white/5 rounded-xl border border-gray-200/50 dark:border-white/5">
-                <button
-                  onClick={() => setComposeMode("single")}
-                  className={`flex items-center gap-1.5 px-3.5 py-1 text-[11px] font-bold uppercase tracking-wider rounded-lg transition-all duration-200 ${composeMode === "single"
-                    ? "bg-white dark:bg-[#2a2b32] text-[#2b83fa] shadow-sm"
-                    : "text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
-                    }`}
-                >
-                  <FiUser className="h-3.5 w-3.5" />
-                  Single
-                </button>
-                <button
-                  onClick={() => setComposeMode("bulk")}
-                  className={`flex items-center gap-1.5 px-3.5 py-1 text-[11px] font-bold uppercase tracking-wider rounded-lg transition-all duration-200 ${composeMode === "bulk"
-                    ? "bg-white dark:bg-[#2a2b32] text-[#2b83fa] shadow-sm"
-                    : "text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
-                    }`}
-                >
-                  <FiUsers className="h-3.5 w-3.5" />
-                  Bulk
-                </button>
+              <div className="flex items-center justify-between sm:justify-end gap-3 sm:gap-4">
+
+                {/* Compact Toggle */}
+                <div className="flex p-0.5 bg-gray-100 dark:bg-white/5 rounded-xl border border-gray-200/50 dark:border-white/5">
+                  <button
+                    onClick={() => setComposeMode("single")}
+                    className={`flex items-center gap-1.5 px-3 py-1 text-[10px] sm:text-[11px] font-bold uppercase tracking-wider rounded-lg transition-all duration-200 ${composeMode === "single"
+                      ? "bg-white dark:bg-[#2a2b32] text-[#2b83fa] shadow-sm shadow-blue-500/10"
+                      : "text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+                      }`}
+                  >
+                    <FiUser className="h-3 w-3 sm:h-3.5 sm:w-3.5" />
+                    Single
+                  </button>
+                  <button
+                    onClick={() => setComposeMode("bulk")}
+                    className={`flex items-center gap-1.5 px-3 py-1 text-[10px] sm:text-[11px] font-bold uppercase tracking-wider rounded-lg transition-all duration-200 ${composeMode === "bulk"
+                      ? "bg-white dark:bg-[#2a2b32] text-[#2b83fa] shadow-sm shadow-blue-500/10"
+                      : "text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+                      }`}
+                  >
+                    <FiUsers className="h-3 w-3 sm:h-3.5 sm:w-3.5" />
+                    Bulk
+                  </button>
+                </div>
               </div>
             </div>
 
             {/* Recipient Line */}
-            <div className="flex items-start gap-4 pb-2 border-t border-gray-100 dark:border-white/5 pt-3">
-              <span className="text-[14px] font-semibold text-gray-400 dark:text-gray-500 mt-2.5 min-w-[24px]">To:</span>
+            <div className="flex items-start gap-3 pb-2 border-t border-gray-100 dark:border-white/5 pt-3">
+              <span className="text-[14px] font-semibold text-gray-400 dark:text-gray-500 mt-2.5 whitespace-nowrap">To:</span>
 
               <div className="flex-1 min-h-[44px]">
                 <div className="relative" ref={dropdownRef}>
@@ -502,6 +508,15 @@ export const Composer: React.FC<ComposerProps> = ({ selectedContacts, isNewMessa
                   )}
                 </div>
               </div>
+
+              {/* Sender Selector — right of To: row */}
+              <div className="flex-shrink-0 mt-1">
+                <SenderSelector
+                  value={senderName}
+                  onChange={setSenderName}
+                  size="sm"
+                />
+              </div>
             </div>
           </div>
         )}
@@ -510,83 +525,97 @@ export const Composer: React.FC<ComposerProps> = ({ selectedContacts, isNewMessa
       {/* 2. Message History Area */}
       <div className="flex-1 overflow-y-auto px-6 py-4 space-y-1 flex flex-col custom-scrollbar">
         <div className="max-w-5xl mx-auto w-full h-full flex flex-col">
-        {messages.length === 0 ? (
-          <div className="flex-1 flex flex-col items-center justify-center">
-            {isNewMessage && !lottieError ? (
-              <DotLottieReact
-                src="https://lottie.host/8bff6661-62db-4473-adb8-7eced34f3649/mii3gOOlir.lottie"
-                loop
-                autoplay
-                className="w-40 h-40 md:w-56 md:h-56 mb-1"
-                onError={(error) => {
-                  console.error('Lottie load error:', error);
-                  setLottieError(true);
-                }}
-              />
-            ) : (
-              <div className="w-24 h-24 mb-6 rounded-[2.5rem] bg-gradient-to-br from-[#2b83fa]/10 to-[#60a5fa]/5 dark:from-[#2b83fa]/20 dark:to-[#60a5fa]/5 flex items-center justify-center border border-[#2b83fa]/10 dark:border-[#2b83fa]/20 shadow-inner">
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-10 w-10 text-[#2b83fa]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
-                </svg>
-              </div>
-            )}
-            <h3 className="text-[19px] font-bold text-[#111111] dark:text-[#ececf1] mb-2 tracking-tight">
-              {isNewMessage ? (composeMode === "bulk" ? "New Broadcast" : "New Message") : "Sent Messages"}
-            </h3>
-            <p className="text-[14px] text-gray-500 dark:text-gray-400 text-center max-w-xs leading-relaxed">
-              {isNewMessage
-                ? (composeMode === "bulk" ? "Select contacts to send a synchronized update across your network." : "Type a message below to start a new professional conversation.")
-                : "Type below to continue the conversation."}
-            </p>
-          </div>
-        ) : (
-          <>
-            {messages.map((msg, index) => {
-              const isExpanded = expandedMessageId === msg.id;
-              const isLastMessage = index === messages.length - 1;
-              const isSingleMessage = messages.length === 1;
-              const prevMsg = messages[index - 1];
-              const showDateSeparator = !prevMsg || new Date(msg.timestamp).toDateString() !== new Date(prevMsg.timestamp).toDateString();
-              const isFirstInGroup = showDateSeparator;
-              
-              return (
-                <div key={msg.id}>
-                  {showDateSeparator && (
-                    <div className="w-full flex items-center justify-center my-4">
-                      <span className="px-3 py-1 bg-gray-100 dark:bg-white/10 rounded-full text-[11px] font-medium text-gray-500 dark:text-gray-400">
-                        {new Date(msg.timestamp).toLocaleDateString([], { weekday: 'long', month: 'short', day: 'numeric' })}
-                      </span>
-                    </div>
-                  )}
-                  <div 
-                    className="flex flex-col justify-end items-end group mb-1 cursor-pointer w-full"
-                    onClick={() => setExpandedMessageId(isExpanded ? null : msg.id)}
-                  >
-                    <div className={`bg-gradient-to-r from-[#2b83fa] to-[#1d6bd4] text-white px-4 py-2.5 shadow-lg shadow-blue-500/10 transition-transform group-hover:scale-[1.01] ${isSingleMessage ? 'rounded-[1.25rem]' : isLastMessage ? 'rounded-[1.25rem] rounded-tr-md' : isFirstInGroup ? 'rounded-[1.25rem] rounded-br-md' : 'rounded-[1.25rem] rounded-tr-md rounded-br-md'}`}>
-                      <p className="text-[14.5px] leading-relaxed whitespace-pre-wrap">{msg.text}</p>
-                    </div>
-                    {/* Details - hidden by default, shown on click */}
-                    <div className={`overflow-hidden transition-all duration-300 ease-in-out ${isExpanded ? 'max-h-20 opacity-100 mt-1 mb-1 px-1' : 'max-h-0 opacity-0'}`}>
-                      <div className="flex items-center gap-2">
-                        <span className="text-[10px] font-semibold text-gray-500 dark:text-gray-400">
-                          {msg.senderName}
+          {historyLoading && messages.length === 0 ? (
+            <div className="flex-1 flex items-center justify-center">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#2b83fa]"></div>
+            </div>
+          ) : messages.length === 0 ? (
+            <div className="flex-1 flex flex-col items-center justify-center">
+              {isNewMessage && !lottieError ? (
+                <DotLottieReact
+                  src="https://lottie.host/8bff6661-62db-4473-adb8-7eced34f3649/mii3gOOlir.lottie"
+                  loop
+                  autoplay
+                  className="w-40 h-40 md:w-56 md:h-56 mb-1"
+                  onError={() => setLottieError(true)}
+                />
+              ) : (
+                <div className="w-24 h-24 mb-6 rounded-[2.5rem] bg-gradient-to-br from-[#2b83fa]/10 to-[#60a5fa]/5 dark:from-[#2b83fa]/20 dark:to-[#60a5fa]/5 flex items-center justify-center border border-[#2b83fa]/10 dark:border-[#2b83fa]/20 shadow-inner">
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-10 w-10 text-[#2b83fa]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
+                  </svg>
+                </div>
+              )}
+              <h3 className="text-[19px] font-bold text-[#111111] dark:text-[#ececf1] mb-2 tracking-tight">
+                {activePhoneNumber ? "No history yet" : (composeMode === "bulk" ? "New Broadcast" : "New Message")}
+              </h3>
+              <p className="text-[14px] text-gray-500 dark:text-gray-400 text-center max-w-xs leading-relaxed">
+                {activePhoneNumber
+                  ? "Start a professional conversation by typing your first message below."
+                  : (composeMode === "bulk" ? "Select contacts to send a synchronized update across your network." : "Type a message below to start a new professional conversation.")}
+              </p>
+            </div>
+          ) : (
+            <>
+              {messages.map((msg, index) => {
+                const isExpanded = expandedMessageId === msg.id;
+                const prevMsg = messages[index - 1];
+                const nextMsg = messages[index + 1];
+
+                const msgDateStr = new Date(msg.timestamp).toDateString();
+                const showDateSeparator = !prevMsg || new Date(prevMsg.timestamp).toDateString() !== msgDateStr;
+
+                const isPrevSameGroup = !showDateSeparator; // If no date separator, it's same group as prev
+                const isNextSameGroup = nextMsg && new Date(nextMsg.timestamp).toDateString() === msgDateStr;
+
+                // Rounding Logic
+                let roundingClasses = "rounded-[20px]";
+                if (isPrevSameGroup && isNextSameGroup) {
+                  roundingClasses = "rounded-[20px] rounded-tr-[4px] rounded-br-[4px]"; // Middle
+                } else if (isPrevSameGroup && !isNextSameGroup) {
+                  roundingClasses = "rounded-[20px] rounded-tr-[4px]"; // Bottom
+                } else if (!isPrevSameGroup && isNextSameGroup) {
+                  roundingClasses = "rounded-[20px] rounded-br-[4px]"; // Top
+                }
+
+                return (
+                  <div key={msg.id} className="w-full flex flex-col items-end">
+                    {showDateSeparator && (
+                      <div className="w-full flex items-center justify-center my-4">
+                        <span className="px-3 py-1 bg-gray-100 dark:bg-white/10 rounded-full text-[11px] font-medium text-gray-500 dark:text-gray-400">
+                          {new Date(msg.timestamp).toLocaleDateString([], { weekday: 'long', month: 'short', day: 'numeric' })}
                         </span>
-                        <span className="text-[10px] text-gray-400">•</span>
-                        <span className="text-[10px] text-gray-500 dark:text-gray-400 font-medium">
-                          {msg.timestamp.toLocaleDateString([], { month: 'short', day: 'numeric' })} {msg.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                        </span>
-                        <span className="text-[10px] text-gray-400">•</span>
-                        <span className={`text-[10px] font-bold capitalize tracking-wider ${msg.status === 'sent' ? 'text-green-500' : msg.status === 'delivered' ? 'text-blue-400' : msg.status === 'failed' ? 'text-red-500' : 'text-gray-400'}`}>
-                          {msg.status === 'sending' ? '⟳' : msg.status === 'sent' ? '✓' : msg.status === 'delivered' ? '✓✓' : '✗'} {msg.status}
-                        </span>
+                      </div>
+                    )}
+                    <div
+                      className="max-w-[85%] flex flex-col items-end group mb-1 cursor-pointer"
+                      onClick={() => setExpandedMessageId(isExpanded ? null : msg.id)}
+                    >
+                      <div className={`bg-gradient-to-r from-[#2b83fa] to-[#1d6bd4] text-white px-4 py-2.5 shadow-lg shadow-blue-500/10 transition-transform group-hover:scale-[1.01] ${roundingClasses}`}>
+                        <p className="text-[14.5px] leading-relaxed whitespace-pre-wrap">{msg.text}</p>
+                      </div>
+
+                      <div className={`overflow-hidden transition-all duration-300 ease-in-out ${isExpanded ? 'max-h-20 opacity-100 mt-1 mb-1 px-1' : 'max-h-0 opacity-0'}`}>
+                        <div className="flex items-center gap-2">
+                          <span className="text-[10px] font-semibold text-gray-500 dark:text-gray-400">
+                            {msg.senderName}
+                          </span>
+                          <span className="text-[10px] text-gray-400">•</span>
+                          <span className="text-[10px] text-gray-500 dark:text-gray-400 font-medium">
+                            {new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                          </span>
+                          <span className="text-[10px] text-gray-400">•</span>
+                          <span className={`text-[10px] font-bold capitalize tracking-wider ${msg.status === 'sent' ? 'text-green-500' : msg.status === 'delivered' ? 'text-blue-400' : msg.status === 'failed' ? 'text-red-500' : 'text-gray-400'}`}>
+                            {msg.status === 'sending' ? '⟳' : msg.status === 'sent' ? '✓' : msg.status === 'delivered' ? '✓✓' : '✗'} {msg.status}
+                          </span>
+                        </div>
                       </div>
                     </div>
                   </div>
-                </div>
-              );
-            })}
-          </>
-        )}
+                );
+              })}
+            </>
+          )}
         </div>
         <div ref={messagesEndRef} />
       </div>
@@ -783,7 +812,7 @@ export const Composer: React.FC<ComposerProps> = ({ selectedContacts, isNewMessa
             fontWeight: 500,
             minWidth: 'auto',
             // Light mode glass effect
-            background: toastSeverity === 'success' 
+            background: toastSeverity === 'success'
               ? 'linear-gradient(135deg, rgba(255, 255, 255, 0.75) 0%, rgba(255, 255, 255, 0.55) 100%)'
               : 'linear-gradient(135deg, rgba(255, 255, 255, 0.75) 0%, rgba(255, 255, 255, 0.55) 100%)',
             border: '1px solid rgba(255, 255, 255, 0.4)',

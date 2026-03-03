@@ -141,6 +141,8 @@ export const Dashboard: React.FC<DashboardProps> = ({ isMobileMenuOpen: external
               selectedContacts={selectedContacts}
               isNewMessage={currentView === 'compose'}
               activeContact={activeContact}
+              onSelectContact={handleSelectContact}
+              onSelectBulkMessage={handleSelectBulkMessage}
             />
           ) : currentView === 'contacts' ? (
             <ContactsTab

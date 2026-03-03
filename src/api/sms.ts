@@ -1,5 +1,8 @@
+import type { SmsLog } from "../types/Sms";
+
 const WEBHOOK_URL = "/api/sms";
-const SENDER_NAME = "NOLACRM";
+
+export type SenderId = string;
 
 interface SendSmsResponse {
   success?: boolean;
@@ -11,43 +14,58 @@ interface SendSmsResponse {
 
 /**
  * Normalize Philippine phone numbers to 09XXXXXXXXX
- * This matches most PHP + Semaphore wrappers
+ * This matches the backend's clean_numbers function
  */
 const normalizePHNumber = (input: string): string | null => {
   if (!input) return null;
 
   const digits = input.replace(/\D/g, "");
 
-  // 09XXXXXXXXX → +639XXXXXXXXX
+  // 09XXXXXXXXX → valid
   if (digits.startsWith("09") && digits.length === 11) {
-    return "+63" + digits.substring(1);
+    return digits;
   }
 
-  // 9XXXXXXXXX → +639XXXXXXXXX
+  // 9XXXXXXXXX → 09XXXXXXXXX
   if (digits.startsWith("9") && digits.length === 10) {
-    return "+63" + digits;
+    return "0" + digits;
   }
 
-  // 63XXXXXXXXXX → +63XXXXXXXXXX
-  if (digits.startsWith("63") && digits.length === 12) {
-    return "+" + digits;
-  }
-
-  // +639XXXXXXXXX → valid
+  // 639XXXXXXXXX → 09XXXXXXXXX
   if (digits.startsWith("639") && digits.length === 12) {
-    return "+" + digits;
+    return "0" + digits.substring(2);
+  }
+
+  // +639XXXXXXXXX (already digits only)
+  if (digits.startsWith("639") && digits.length === 12) {
+    return "0" + digits.substring(2);
   }
 
   return null;
 };
 
 const isValidPHNumber = (number: string): boolean => {
-  return /^\+639\d{9}$/.test(number);
+  return /^09\d{9}$/.test(number);
+};
+
+export const fetchSmsLogs = async (phoneNumber: string): Promise<SmsLog[]> => {
+  const formattedNumber = normalizePHNumber(phoneNumber);
+  if (!formattedNumber) return [];
+
+  try {
+    const res = await fetch(`/api/messages?number=${formattedNumber}`);
+    if (!res.ok) throw new Error("Failed to fetch message history");
+    return res.json();
+  } catch (error) {
+    console.error("Fetch Logs Error:", error);
+    return [];
+  }
 };
 
 export const sendSms = async (
   phoneNumber: string,
-  message: string
+  message: string,
+  senderName: string = "NOLACRM"
 ): Promise<SendSmsResponse> => {
   if (!phoneNumber || !message) {
     return {
@@ -65,23 +83,21 @@ export const sendSms = async (
     };
   }
 
-  const params = new URLSearchParams();
-  params.append("number", formattedNumber);
-  params.append("message", message);
-  params.append("sendername", SENDER_NAME);
-
-  console.log("Sending SMS:", {
+  const payload = {
     number: formattedNumber,
-    message,
-  });
+    message: message,
+    sendername: senderName,
+  };
+
+  console.log("Sending SMS to new backend:", payload);
 
   try {
     const res = await fetch(WEBHOOK_URL, {
       method: "POST",
       headers: {
-        "Content-Type": "application/x-www-form-urlencoded",
+        "Content-Type": "application/json",
       },
-      body: params.toString(),
+      body: JSON.stringify(payload),
     });
 
     if (!res.ok) {
@@ -92,7 +108,7 @@ export const sendSms = async (
     const data = await res.json();
     console.log("SMS API Response:", data);
 
-    if (data?.status === "error") {
+    if (data?.status === "error" || data?.status === "failed") {
       return {
         success: false,
         message: data.message || "SMS sending failed",
@@ -114,12 +130,13 @@ export const sendSms = async (
 
 export const sendBulkSms = async (
   phoneNumbers: string[],
-  message: string
+  message: string,
+  senderName: string = "NOLACRM"
 ): Promise<SendSmsResponse[]> => {
   const results: SendSmsResponse[] = [];
 
   for (const phone of phoneNumbers) {
-    const result = await sendSms(phone, message);
+    const result = await sendSms(phone, message, senderName);
     results.push(result);
   }
 

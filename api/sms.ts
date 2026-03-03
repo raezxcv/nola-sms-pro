@@ -5,16 +5,16 @@ export default async function handler(
   response: VercelResponse
 ) {
   if (request.method !== 'POST') {
-    return response.status(405).json({ 
-      status: 'error', 
-      message: 'Method not allowed' 
+    return response.status(405).json({
+      status: 'error',
+      message: 'Method not allowed'
     });
   }
 
   try {
     // Parse the form data from request body
     const { number, message, sendername } = request.body || {};
-    
+
     let formattedNumber = number || '';
 
     // Format Philippine phone numbers - the webhook expects 09xxxxxxxxx format
@@ -29,28 +29,32 @@ export default async function handler(
       formattedNumber = '0' + formattedNumber;
     }
 
-    // Rebuild the body with the customData wrapper
-    const params = new URLSearchParams();
-    params.append('customData[number]', formattedNumber);
-    params.append('customData[message]', message || '');
-    params.append('customData[sendername]', sendername || 'NOLACRM');
+    // Rebuild the body with the customData wrapper as JSON
+    const payload = {
+      customData: {
+        number: formattedNumber,
+        message: message || '',
+        sendername: sendername || 'NOLACRM',
+      }
+    };
 
-    const webhookResponse = await fetch('https://webhooks.nolacrm.io/webhook/send_sms.php', {
+    const webhookResponse = await fetch('https://smspro-api.nolacrm.io/webhook/send_sms', {
       method: 'POST',
       headers: {
-        'Content-Type': 'application/x-www-form-urlencoded',
+        'Content-Type': 'application/json',
+        'X-Webhook-Secret': 'f7RkQ2pL9zV3tX8cB1nS4yW6',
       },
-      body: params.toString(),
+      body: JSON.stringify(payload),
     });
 
     const data = await webhookResponse.json();
-    
+
     return response.status(200).json(data);
   } catch (error) {
     console.error('SMS Proxy Error:', error);
-    return response.status(500).json({ 
-      status: 'error', 
-      message: 'Failed to send SMS' 
+    return response.status(500).json({
+      status: 'error',
+      message: 'Failed to send SMS'
     });
   }
 }

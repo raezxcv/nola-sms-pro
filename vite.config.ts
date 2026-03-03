@@ -14,46 +14,42 @@ const smsProxyPlugin = () => ({
         });
 
         req.on('end', async () => {
-          // Parse the form data
-          const params = new URLSearchParams(body);
-          let number = params.get('number') || '';
-
-          // Format Philippine phone numbers - the webhook expects 09xxxxxxxxx format
-          // It will convert +63 to 0 internally
-          if (number.startsWith('+63')) {
-            number = '0' + number.substring(3);
-          } else if (number.startsWith('639')) {
-            number = '0' + number.substring(2);
-          } else if (number.startsWith('09') && number.length === 11) {
-            // Already in correct format
-          } else if (number.startsWith('9') && number.length === 10) {
-            number = '0' + number;
-          }
-
-          // Rebuild the body with the customData wrapper
-          const newBody = new URLSearchParams();
-          newBody.append('customData[number]', number);
-          newBody.append('customData[message]', params.get('message') || '');
-          newBody.append('customData[sendername]', params.get('sendername') || 'NOLACRM');
-
           try {
-            const response = await fetch('https://webhooks.nolacrm.io/webhook/send_sms.php', {
+            const { number, message, sendername } = JSON.parse(body);
+
+            // Rebuild the body with the customData wrapper as JSON
+            const payload = {
+              customData: {
+                number: number || '',
+                message: message || '',
+                sendername: sendername || 'NOLACRM',
+              }
+            };
+
+            const response = await fetch('https://smspro-api.nolacrm.io/webhook/send_sms', {
               method: 'POST',
               headers: {
-                'Content-Type': 'application/x-www-form-urlencoded',
+                'Content-Type': 'application/json',
+                'X-Webhook-Secret': 'f7RkQ2pL9zV3tX8cB1nS4yW6',
               },
-              body: newBody.toString(),
+              body: JSON.stringify(payload),
             });
 
             const data = await response.json();
             res.setHeader('Content-Type', 'application/json');
             res.end(JSON.stringify(data));
           } catch (error) {
+            console.error('Vite Proxy Error:', error);
             res.setHeader('Content-Type', 'application/json');
-            res.end(JSON.stringify({ status: 'error', message: 'Failed to send SMS' }));
+            res.end(JSON.stringify({ status: 'error', message: 'Failed to send SMS via proxy' }));
           }
         });
       }
+    });
+
+    server.middlewares.use('/api/messages', (_req, res) => {
+      res.setHeader('Content-Type', 'application/json');
+      res.end(JSON.stringify([]));
     });
 
     server.middlewares.use('/api/contacts', (_req, res) => {
