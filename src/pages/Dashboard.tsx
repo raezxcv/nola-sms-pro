@@ -74,7 +74,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ isMobileMenuOpen: external
       {/* Sidebar - Left */}
       <div className={`
         fixed md:relative z-50 h-full transition-all duration-300 ease-in-out
-        ${isMobileMenuOpen ? 'w-80 border-r border-[#0000001a] dark:border-[#ffffff1a]' : 'w-0 md:w-auto'}
+        ${isMobileMenuOpen ? 'w-80 border-r border-[#0000001a] dark:border-[#ffffff1a] bg-white dark:bg-[#121415]' : 'w-0 md:w-auto'}
         ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}
         overflow-hidden
       `}>
