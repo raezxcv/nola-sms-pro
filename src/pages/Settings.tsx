@@ -1,4 +1,4 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import {
     FiUser, FiSend, FiMoon, FiCode, FiBell, FiCreditCard,
     FiSave, FiPlus, FiTrash2, FiCopy, FiCheck, FiSun,
@@ -20,6 +20,8 @@ type SettingsTab = "account" | "senderIds" | "appearance" | "api" | "notificatio
 interface SettingsProps {
     darkMode: boolean;
     toggleDarkMode: () => void;
+    initialTab?: SettingsTab;
+    autoOpenAddModal?: boolean;
 }
 
 // ─── Constants ───────────────────────────────────────────────────────────────
@@ -199,7 +201,7 @@ const AccountSection: React.FC = () => {
 };
 
 // ─── Section: Sender IDs ────────────────────────────────────────────────────
-const SenderIdsSection: React.FC = () => {
+const SenderIdsSection: React.FC<{ autoOpenAddModal?: boolean }> = ({ autoOpenAddModal }) => {
     const DEFAULT_SENDER_IDS: StoredSenderId[] = [
         { id: "NOLACRM", name: "NOLACRM", description: "Default System Sender", color: "bg-blue-500", status: "approved" },
         { id: "BRANCH1", name: "BRANCH1", description: "Standard Sender ID", color: "bg-purple-500", status: "approved" },
@@ -210,6 +212,13 @@ const SenderIdsSection: React.FC = () => {
     const [isAdding, setIsAdding] = useState(false);
     const [newId, setNewId] = useState("");
     const [newDesc, setNewDesc] = useState("");
+
+    // Auto-open modal when triggered from Composer
+    useEffect(() => {
+        if (autoOpenAddModal) {
+            setIsAdding(true);
+        }
+    }, [autoOpenAddModal]);
 
     const allIds = [...DEFAULT_SENDER_IDS, ...customIds];
 
@@ -490,7 +499,7 @@ const APISection: React.FC = () => {
                 <h3 className="text-[13px] font-bold text-[#37352f] dark:text-[#ececf1] mb-4 uppercase tracking-wider">API Endpoints Reference</h3>
                 <div className="space-y-1.5">
                     {ENDPOINT_ROWS.map(ep => (
-                        <div key={ep.path} className="flex items-center gap-3 px-3 py-2.5 rounded-xl bg-[#f7f7f7] dark:bg-[#0d0e10] group">
+                        <div key={`${ep.method}-${ep.path}`} className="flex items-center gap-3 px-3 py-2.5 rounded-xl bg-[#f7f7f7] dark:bg-[#0d0e10] group">
                             <span className={`text-[10px] font-black uppercase px-2 py-0.5 rounded-md tracking-wider flex-shrink-0 ${ep.method === "POST" ? "bg-[#2b83fa]/10 text-[#2b83fa]" : "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400"}`}>
                                 {ep.method}
                             </span>
@@ -713,19 +722,19 @@ const CreditsSection: React.FC = () => {
 };
 
 // ─── Main Export ─────────────────────────────────────────────────────────────
-export const Settings: React.FC<SettingsProps> = ({ darkMode, toggleDarkMode }) => {
-    const [activeTab, setActiveTab] = useState<SettingsTab>("account");
+export const Settings: React.FC<SettingsProps> = ({ darkMode, toggleDarkMode, initialTab, autoOpenAddModal }) => {
+    const [activeTab, setActiveTab] = useState<SettingsTab>(initialTab || "account");
 
     const renderContent = useCallback(() => {
         switch (activeTab) {
             case "account": return <AccountSection />;
-            case "senderIds": return <SenderIdsSection />;
+            case "senderIds": return <SenderIdsSection autoOpenAddModal={autoOpenAddModal && activeTab === "senderIds"} />;
             case "appearance": return <AppearanceSection darkMode={darkMode} toggleDarkMode={toggleDarkMode} />;
             case "api": return <APISection />;
             case "notifications": return <NotificationsSection />;
             case "credits": return <CreditsSection />;
         }
-    }, [activeTab, darkMode, toggleDarkMode]);
+    }, [activeTab, darkMode, toggleDarkMode, autoOpenAddModal]);
 
     const activeTabInfo = TABS.find(t => t.id === activeTab)!;
 

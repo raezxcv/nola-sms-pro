@@ -17,6 +17,7 @@ interface ComposerProps {
   activeContact?: Contact | null;
   onSelectContact?: (contact: Contact) => void;
   onSelectBulkMessage?: (item: BulkMessageHistoryItem) => void;
+  onRequestSettings?: () => void;
 }
 
 export const Composer: React.FC<ComposerProps> = ({
@@ -24,7 +25,8 @@ export const Composer: React.FC<ComposerProps> = ({
   isNewMessage = true,
   activeContact,
   onSelectContact,
-  onSelectBulkMessage
+  onSelectBulkMessage,
+  onRequestSettings
 }) => {
   const [message, setMessage] = useState("");
   const [loading, setLoading] = useState(false);
@@ -350,13 +352,14 @@ export const Composer: React.FC<ComposerProps> = ({
               <SenderSelector
                 value={senderName}
                 onChange={setSenderName}
+                onRequestSettings={onRequestSettings}
               />
             </div>
           </div>
         ) : (
           /* New Message / Bulk Header */
           <div className="max-w-5xl mx-auto px-4 sm:px-6 pt-4 pb-2">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-4 gap-3">
+            <div className="flex flex-row items-center justify-between mb-4 gap-3">
               <div className="flex items-center gap-2.5">
                 <div className="w-8 h-8 rounded-lg bg-[#2b83fa] flex items-center justify-center text-white shadow-lg shadow-blue-500/20">
                   <svg xmlns="http://www.w3.org/2000/svg" className="h-[18px] w-[18px]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.2}>
@@ -366,10 +369,10 @@ export const Composer: React.FC<ComposerProps> = ({
                 <h2 className="text-[16px] sm:text-[17px] font-bold text-[#111111] dark:text-[#ececf1] tracking-tight">New Message</h2>
               </div>
 
-              <div className="flex items-center justify-between sm:justify-end gap-3 sm:gap-4">
+              <div className="flex items-center justify-end gap-3 sm:gap-4">
 
                 {/* Compact Toggle */}
-                <div className="flex p-0.5 bg-gray-100 dark:bg-white/5 rounded-xl border border-gray-200/50 dark:border-white/5 w-full sm:w-auto">
+                <div className="flex p-0.5 bg-gray-100 dark:bg-white/5 rounded-xl border border-gray-200/50 dark:border-white/5">
                   <button
                     onClick={() => setComposeMode("single")}
                     className={`flex-1 flex items-center justify-center gap-1.5 px-3 py-1.5 sm:py-1 text-[10px] sm:text-[11px] font-bold uppercase tracking-wider rounded-lg transition-all duration-200 ${composeMode === "single"
@@ -403,6 +406,7 @@ export const Composer: React.FC<ComposerProps> = ({
                     value={senderName}
                     onChange={setSenderName}
                     align="left"
+                    onRequestSettings={onRequestSettings}
                   />
                 </div>
               </div>
@@ -529,6 +533,7 @@ export const Composer: React.FC<ComposerProps> = ({
                   value={senderName}
                   onChange={setSenderName}
                   size="sm"
+                  onRequestSettings={onRequestSettings}
                 />
               </div>
             </div>

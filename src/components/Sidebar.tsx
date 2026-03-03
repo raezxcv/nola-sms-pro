@@ -232,13 +232,15 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
             {/* Direct Messages Header - Sticky */}
             <div
-              className="flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-black/[0.04] dark:hover:bg-white/[0.04] transition-colors cursor-pointer border-t border-[#00000005] dark:border-[#ffffff05] pt-4 sticky top-[41px] bg-white/70 dark:bg-[#121415]/80 backdrop-blur-xl z-10"
+              className="flex items-center justify-between gap-2 px-2 py-1.5 rounded-lg hover:bg-black/[0.04] dark:hover:bg-white/[0.04] transition-colors cursor-pointer border-t border-[#00000005] dark:border-[#ffffff05] pt-4 sticky top-[41px] bg-white/70 dark:bg-[#121415]/80 backdrop-blur-xl z-10"
               onClick={() => setDirectMessagesExpanded(!directMessagesExpanded)}
             >
-              <div className={`transition-transform duration-200 ${directMessagesExpanded ? 'rotate-0' : '-rotate-90'}`}>
-                <FiChevronDown className="w-4 h-4 text-[#5f6368] dark:text-[#9aa0a6]" />
+              <div className="flex items-center gap-2">
+                <div className={`transition-transform duration-200 ${directMessagesExpanded ? 'rotate-0' : '-rotate-90'}`}>
+                  <FiChevronDown className="w-4 h-4 text-[#5f6368] dark:text-[#9aa0a6]" />
+                </div>
+                <h3 className="text-[13px] font-semibold text-[#3c4043] dark:text-[#e8eaed]">Direct Messages</h3>
               </div>
-              <h3 className="text-[13px] font-semibold text-[#3c4043] dark:text-[#e8eaed]">Direct Messages</h3>
               <span className="text-[11px] font-medium text-[#5f6368] dark:text-[#9aa0a6] bg-[#f1f3f4] dark:bg-[#3c4043] px-1.5 py-0.5 rounded">{contacts.length}</span>
             </div>
 
@@ -350,13 +352,15 @@ export const Sidebar: React.FC<SidebarProps> = ({
             {/* Bulk Messages Header - Sticky */}
             <>
               <div
-                className="flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-black/[0.04] dark:hover:bg-white/[0.04] transition-colors cursor-pointer mt-1 sticky top-[92px] bg-white/70 dark:bg-[#121415]/80 backdrop-blur-xl z-10"
+                className="flex items-center justify-between gap-2 px-2 py-1.5 rounded-lg hover:bg-black/[0.04] dark:hover:bg-white/[0.04] transition-colors cursor-pointer mt-1 sticky top-[92px] bg-white/70 dark:bg-[#121415]/80 backdrop-blur-xl z-10"
                 onClick={() => setBulkMessagesExpanded(!bulkMessagesExpanded)}
               >
-                <div className={`transition-transform duration-200 ${bulkMessagesExpanded ? 'rotate-0' : '-rotate-90'}`}>
-                  <FiChevronDown className="w-4 h-4 text-[#5f6368] dark:text-[#9aa0a6]" />
+                <div className="flex items-center gap-2">
+                  <div className={`transition-transform duration-200 ${bulkMessagesExpanded ? 'rotate-0' : '-rotate-90'}`}>
+                    <FiChevronDown className="w-4 h-4 text-[#5f6368] dark:text-[#9aa0a6]" />
+                  </div>
+                  <h3 className="text-[13px] font-semibold text-[#3c4043] dark:text-[#e8eaed]">Bulk Messages</h3>
                 </div>
-                <h3 className="text-[13px] font-semibold text-[#3c4043] dark:text-[#e8eaed]">Bulk Messages</h3>
                 <span className="text-[11px] font-medium text-[#5f6368] dark:text-[#9aa0a6] bg-[#f1f3f4] dark:bg-[#3c4043] px-1.5 py-0.5 rounded">{bulkHistory.length}</span>
               </div>
 

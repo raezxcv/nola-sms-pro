@@ -17,6 +17,7 @@ interface SenderSelectorProps {
     label?: string;
     size?: "sm" | "md";
     align?: "left" | "right";
+    onRequestSettings?: () => void;
 }
 
 const DEFAULT_OPTIONS: SenderOption[] = [
@@ -33,7 +34,8 @@ export const SenderSelector: React.FC<SenderSelectorProps> = ({
     onChange,
     label = "From:",
     size = "md",
-    align = "right"
+    align = "right",
+    onRequestSettings
 }) => {
     const [isOpen, setIsOpen] = useState(false);
     const [isAdding, setIsAdding] = useState(false);
@@ -200,13 +202,16 @@ export const SenderSelector: React.FC<SenderSelectorProps> = ({
 
                         <div className="mt-1.5 p-1 border-t border-gray-100 dark:border-white/5">
                             <button
-                                onClick={() => setIsAdding(true)}
+                                onClick={() => {
+                                    setIsOpen(false);
+                                    setIsAdding(true);
+                                }}
                                 className="w-full flex items-center gap-3 p-2 rounded-xl hover:bg-[#2b83fa]/5 text-[#2b83fa] transition-all group"
                             >
                                 <div className="flex items-center justify-center w-8 h-8 rounded-xl bg-[#2b83fa]/10 text-[#2b83fa] group-hover:bg-[#2b83fa] group-hover:text-white transition-all">
                                     <FiPlus className="h-4 w-4" />
                                 </div>
-                                <span className="text-[13px] font-bold">Add New Sender ID</span>
+                                <span className="text-[13px] font-bold">Request New Sender ID</span>
                             </button>
                         </div>
                     </div>
@@ -229,7 +234,7 @@ export const SenderSelector: React.FC<SenderSelectorProps> = ({
                                 <div className="w-8 h-8 rounded-lg bg-[#2b83fa]/10 dark:bg-[#2b83fa]/20 flex items-center justify-center text-[#2b83fa]">
                                     <FiPlus className="h-4 w-4" />
                                 </div>
-                                <h3 className="text-[16px] sm:text-[18px] font-bold text-[#111111] dark:text-[#ececf1]">Add Sender ID</h3>
+                                <h3 className="text-[16px] sm:text-[18px] font-bold text-[#111111] dark:text-[#ececf1]">Request Sender ID</h3>
                             </div>
                             <button
                                 onClick={() => setIsAdding(false)}
@@ -249,11 +254,13 @@ export const SenderSelector: React.FC<SenderSelectorProps> = ({
                                         autoFocus
                                         type="text"
                                         value={newId}
-                                        onChange={(e) => setNewId(e.target.value)}
-                                        placeholder="e.g. MY BRAND"
+                                        onChange={(e) => setNewId(e.target.value.toUpperCase())}
+                                        placeholder="e.g. MYBRAND"
+                                        maxLength={11}
                                         className="w-full px-3 sm:px-4 py-2.5 sm:py-3 bg-gray-50 dark:bg-[#111111] border border-gray-200/60 dark:border-white/10 rounded-xl text-[14px] font-medium text-[#111111] dark:text-[#ececf1] placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#2b83fa]/20 transition-all font-bold"
                                         required
                                     />
+                                    <p className="text-[11px] text-gray-500 dark:text-gray-400 mt-1">Max 11 characters. Will be submitted for approval.</p>
                                 </div>
                                 <div>
                                     <label className="block text-[11px] sm:text-[12px] font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">
@@ -279,10 +286,10 @@ export const SenderSelector: React.FC<SenderSelectorProps> = ({
                                 </button>
                                 <button
                                     type="submit"
-                                    className="w-full sm:flex-1 flex items-center justify-center gap-2 px-4 py-3 bg-[#2b83fa] hover:bg-[#1d6bd4] text-white rounded-xl font-semibold text-[14px] transition-all duration-200 shadow-md shadow-blue-500/20"
+                                    className="w-full sm:flex-1 flex items-center justify-center gap-2 px-4 py-3 bg-gradient-to-r from-[#2b83fa] to-[#1d6bd4] hover:shadow-[0_8px_25px_rgba(43,131,250,0.4)] text-white rounded-xl font-semibold text-[14px] transition-all shadow-md shadow-blue-500/20"
                                 >
                                     <FiPlus className="h-4 w-4" />
-                                    Create Sender
+                                    Submit Request
                                 </button>
                             </div>
                         </form>

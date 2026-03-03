@@ -21,6 +21,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ isMobileMenuOpen: external
   const [currentView, setCurrentView] = useState<ViewTab>('compose');
   const [activeContact, setActiveContact] = useState<Contact | null>(null);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState(false);
 
   const isMobileMenuOpen = externalIsMobileMenuOpen !== undefined ? externalIsMobileMenuOpen : false;
 
@@ -144,15 +145,18 @@ export const Dashboard: React.FC<DashboardProps> = ({ isMobileMenuOpen: external
               activeContact={activeContact}
               onSelectContact={handleSelectContact}
               onSelectBulkMessage={handleSelectBulkMessage}
+              onRequestSettings={() => setSettingsOpen(true)}
             />
           ) : currentView === 'contacts' ? (
             <ContactsTab
               onSendToComposer={handleSendToComposer}
             />
-          ) : currentView === 'settings' ? (
+          ) : currentView === 'settings' || settingsOpen ? (
             <Settings
               darkMode={darkMode ?? false}
               toggleDarkMode={toggleDarkMode ?? (() => { })}
+              initialTab={settingsOpen ? "senderIds" : undefined}
+              autoOpenAddModal={settingsOpen}
             />
           ) : currentView === 'templates' ? (
             <div className="h-full flex flex-col items-center justify-center p-8 text-center bg-white/50 dark:bg-[#202123]/50 backdrop-blur-sm">
