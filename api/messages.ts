@@ -18,17 +18,19 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   try {
     // Route based on method
     if (req.method === 'GET') {
-      // GET /api/messages - fetch messages
+      // Try fetch_logs endpoint first (has number filter)
       const queryParams = new URLSearchParams();
       for (const [key, value] of Object.entries(req.query)) {
         if (value) {
           queryParams.append(key, Array.isArray(value) ? value[0] : value);
         }
       }
-      const cloudRunUrl = `${CLOUD_RUN_URL}/api/messages?${queryParams.toString()}`;
-      console.log('Proxying GET to:', cloudRunUrl);
       
-      const response = await fetch(cloudRunUrl, {
+      // Try fetch_logs first (filters by number)
+      let cloudRunUrl = `${CLOUD_RUN_URL}/api/fetch_logs?${queryParams.toString()}`;
+      console.log('Trying fetch_logs:', cloudRunUrl);
+      
+      let response = await fetch(cloudRunUrl, {
         method: 'GET',
         headers: {
           'X-Webhook-Secret': WEBHOOK_SECRET,
@@ -36,8 +38,26 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         },
       });
 
-      const data = await response.json();
-      console.log('Cloud Run response:', data);
+      let data = await response.json();
+      console.log('fetch_logs response:', data);
+      
+      // If fetch_logs doesn't return valid data, fall back to messages
+      if (!data.data || data.data.length === 0) {
+        cloudRunUrl = `${CLOUD_RUN_URL}/api/messages?${queryParams.toString()}`;
+        console.log('Fallback to messages:', cloudRunUrl);
+        
+        response = await fetch(cloudRunUrl, {
+          method: 'GET',
+          headers: {
+            'X-Webhook-Secret': WEBHOOK_SECRET,
+            'Content-Type': 'application/json',
+          },
+        });
+        
+        data = await response.json();
+        console.log('messages response:', data);
+      }
+      
       return res.status(response.status).json(data);
     } else if (req.method === 'POST') {
       // POST /api/messages - send SMS
