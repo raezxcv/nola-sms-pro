@@ -1,14 +1,46 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 
-export default function handler(req: VercelRequest, res: VercelResponse) {
-    const mockContacts = [
-        { id: '1', name: 'Raely Ivan Reyes', phone: '0976 173 1036' },
-        { id: '2', name: 'David Monzon', phone: '0970 812 9927' },
-        { id: '3', name: 'Nola Support', phone: '09987654321' },
-        { id: '4', name: 'John Doe', phone: '09223334445' },
-        { id: '5', name: 'Jane Smith', phone: '09556667778' },
-    ];
+const CLOUD_RUN_URL = "https://smspro-api.nolacrm.io";
+const WEBHOOK_SECRET = "f7RkQ2pL9zV3tX8cB1nS4yW6";
 
-    res.setHeader('Content-Type', 'application/json');
-    res.status(200).json(mockContacts);
+export default async function handler(req: VercelRequest, res: VercelResponse) {
+  // Set CORS headers for the response
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'X-Webhook-Secret, Content-Type');
+  res.setHeader('Content-Type', 'application/json');
+
+  // Handle preflight
+  if (req.method === 'OPTIONS') {
+    return res.status(200).end();
+  }
+
+  try {
+    if (req.method === 'GET') {
+      // Proxy to PHP endpoint to fetch contacts from Firestore
+      const cloudRunUrl = `${CLOUD_RUN_URL}/webhook/fetch_contacts`;
+      console.log('Proxying GET to:', cloudRunUrl);
+      
+      const response = await fetch(cloudRunUrl, {
+        method: 'GET',
+        headers: {
+          'X-Webhook-Secret': WEBHOOK_SECRET,
+          'Content-Type': 'application/json',
+        },
+      });
+
+      const data = await response.json();
+      console.log('Contacts response:', data);
+      return res.status(response.status).json(data);
+    } else {
+      return res.status(405).json({ error: 'Method not allowed' });
+    }
+  } catch (error) {
+    console.error('Proxy Error:', error);
+    return res.status(500).json({
+      success: false,
+      error: 'Proxy failed',
+      message: error instanceof Error ? error.message : 'Unknown error',
+    });
+  }
 }

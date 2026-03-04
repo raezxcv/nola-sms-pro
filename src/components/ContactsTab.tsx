@@ -1,13 +1,14 @@
 import { useState, useEffect, useMemo } from "react";
 import { fetchContacts } from "../api/contacts";
 import type { Contact } from "../types/Contact";
-import { FiSearch, FiX, FiMail, FiCheck, FiUser, FiPlus, FiTrash2, FiMoreVertical, FiEdit2 } from "react-icons/fi";
+import { FiSearch, FiX, FiMail, FiCheck, FiUser, FiPlus, FiTrash2, FiMoreVertical, FiEdit2, FiMessageCircle } from "react-icons/fi";
 
 interface ContactsTabProps {
   onSendToComposer: (contacts: Contact[]) => void;
+  onViewMessages?: (contact: Contact) => void;
 }
 
-export const ContactsTab: React.FC<ContactsTabProps> = ({ onSendToComposer }) => {
+export const ContactsTab: React.FC<ContactsTabProps> = ({ onSendToComposer, onViewMessages }) => {
   const [contacts, setContacts] = useState<Contact[]>([]);
   const [selectedContacts, setSelectedContacts] = useState<Contact[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
@@ -43,11 +44,17 @@ export const ContactsTab: React.FC<ContactsTabProps> = ({ onSendToComposer }) =>
     );
   }, [searchQuery, contacts]);
 
-  // Group contacts by first letter
+  // Group contacts by first letter (or by phone number if name is a phone number)
   const groupedContacts = useMemo(() => {
     const groups: Record<string, Contact[]> = {};
     filteredContacts.forEach((contact) => {
-      const firstLetter = contact.name.charAt(0).toUpperCase();
+      // If name looks like a phone number, use the first digit for grouping
+      let firstLetter: string;
+      if (/^\d/.test(contact.name)) {
+        firstLetter = contact.name.charAt(0);
+      } else {
+        firstLetter = contact.name.charAt(0).toUpperCase();
+      }
       if (!groups[firstLetter]) {
         groups[firstLetter] = [];
       }
@@ -275,7 +282,7 @@ export const ContactsTab: React.FC<ContactsTabProps> = ({ onSendToComposer }) =>
                             {isSelected && <FiCheck className="h-4 w-4 text-white" />}
                           </div>
 
-                          {/* Avatar */}
+                          {/* Avatar - show phone icon for phone-number contacts */}
                           <div
                             className={`
                               w-9 sm:w-11 h-9 sm:h-11 rounded-xl sm:rounded-2xl flex items-center justify-center font-bold text-[13px] sm:text-[14px] flex-shrink-0 transition-all duration-200
@@ -286,6 +293,15 @@ export const ContactsTab: React.FC<ContactsTabProps> = ({ onSendToComposer }) =>
                             `}
                           >
                             {(() => {
+                              // If name looks like a phone number, show a phone icon
+                              if (/^\d/.test(contact.name)) {
+                                return (
+                                  <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
+                                  </svg>
+                                );
+                              }
+                              // Otherwise show initials
                               const parts = contact.name.split(" ").filter((p) => p.length > 0);
                               const first = parts[0]?.charAt(0) || "";
                               const last = parts.length > 1 ? parts[parts.length - 1]?.charAt(0) || "" : "";
@@ -345,6 +361,19 @@ export const ContactsTab: React.FC<ContactsTabProps> = ({ onSendToComposer }) =>
                                   <FiEdit2 className="w-4 h-4" />
                                   Edit
                                 </button>
+                                {onViewMessages && (
+                                  <button
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      onViewMessages(contact);
+                                      setOpenMenuId(null);
+                                    }}
+                                    className="w-full px-3 py-2 text-left text-[13px] text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-white/5 flex items-center gap-2"
+                                  >
+                                    <FiMessageCircle className="w-4 h-4" />
+                                    View Messages
+                                  </button>
+                                )}
                                 <button
                                   onClick={(e) => {
                                     e.stopPropagation();

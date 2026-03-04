@@ -48,6 +48,12 @@ export const Dashboard: React.FC<DashboardProps> = ({ isMobileMenuOpen: external
     setCurrentView('compose');
   };
 
+  const handleViewMessages = (contact: Contact) => {
+    setActiveContact(contact);
+    setSelectedContacts([contact]);
+    setCurrentView('compose');
+  };
+
   const handleTabChange = (tab: ViewTab) => {
     setCurrentView(tab);
     if (tab === 'compose') {
@@ -150,6 +156,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ isMobileMenuOpen: external
           ) : currentView === 'contacts' ? (
             <ContactsTab
               onSendToComposer={handleSendToComposer}
+              onViewMessages={handleViewMessages}
             />
           ) : currentView === 'settings' || settingsOpen ? (
             <Settings
