@@ -34,6 +34,11 @@ export const ContactsTab: React.FC<ContactsTabProps> = ({ onSendToComposer, onVi
     return () => document.removeEventListener('click', handleClickOutside);
   }, []);
 
+  // Convert name to proper case (title case)
+  const toProperCase = (name: string): string => {
+    return name.replace(/\b\w/g, (char) => char.toUpperCase());
+  };
+
   const filteredContacts = useMemo(() => {
     if (!searchQuery) return contacts;
     const lowerQ = searchQuery.toLowerCase();
@@ -317,7 +322,7 @@ export const ContactsTab: React.FC<ContactsTabProps> = ({ onSendToComposer, onVi
                                 ${isSelected ? "text-[#2b83fa]" : "text-[#111111] dark:text-[#ececf1]"}
                               `}
                             >
-                              {contact.name}
+                              {toProperCase(contact.name)}
                             </p>
                             <p className="text-[12px] text-gray-500 dark:text-gray-400 truncate">
                               {contact.phone}

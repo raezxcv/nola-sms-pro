@@ -106,6 +106,11 @@ export const Sidebar: React.FC<SidebarProps> = ({
     return `${item.recipientCount} recipient${item.recipientCount !== 1 ? 's' : ''}`;
   };
 
+  // Convert name to proper case (title case)
+  const toProperCase = (name: string): string => {
+    return name.replace(/\b\w/g, (char) => char.toUpperCase());
+  };
+
   const navItems = [
     {
       id: 'compose',
@@ -283,7 +288,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                       <div className="flex-1 min-w-0">
                         <div className="flex justify-between items-baseline mb-0.5">
                           <span className={`text-[13.5px] truncate transition-colors duration-200 ${activeContactId === contact.id ? 'font-bold text-[#111111] dark:text-white' : 'font-semibold text-[#37352f] dark:text-[#ececf1]'}`}>
-                            {contact.name}
+                            {toProperCase(contact.name)}
                           </span>
                           <div className="flex items-center gap-1">
                             <span className="text-[9px] font-bold text-[#b4b4b4] dark:text-[#55565a] uppercase tracking-tighter">2m</span>

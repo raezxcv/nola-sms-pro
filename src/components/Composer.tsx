@@ -41,6 +41,11 @@ export const Composer: React.FC<ComposerProps> = ({
   const [bulkSelectedContacts, setBulkSelectedContacts] = useState<Contact[]>([]);
   const [isPickerOpen, setIsPickerOpen] = useState(false);
 
+  // Convert name to proper case (title case)
+  const toProperCase = (name: string): string => {
+    return name.replace(/\b\w/g, (char) => char.toUpperCase());
+  };
+
   const activePhoneNumber = useMemo(() => {
     if (activeContact) return activeContact.phone;
     if (selectedContacts.length === 1) return selectedContacts[0].phone;
@@ -339,7 +344,7 @@ export const Composer: React.FC<ComposerProps> = ({
               </div>
               <div className="flex flex-col min-w-0">
                 <h2 className="text-[15px] sm:text-[17px] font-bold text-[#111111] dark:text-[#ececf1] leading-tight tracking-tight truncate">
-                  {activeContact?.name || selectedContacts[0]?.name}
+                  {toProperCase(activeContact?.name || selectedContacts[0]?.name || '')}
                 </h2>
                 <span className="text-[12px] sm:text-[13px] text-gray-500 dark:text-gray-400 font-medium truncate">
                   {activePhoneNumber}
@@ -427,7 +432,7 @@ export const Composer: React.FC<ComposerProps> = ({
                         key={contact.id}
                         className="flex items-center gap-1.5 bg-[#2b83fa]/10 dark:bg-[#2b83fa]/20 border border-[#2b83fa]/20 px-2.5 py-1 rounded-full text-[13px] text-[#2b83fa] font-semibold"
                       >
-                        {contact.name}
+                        {toProperCase(contact.name)}
                         <button
                           onClick={(e) => handleRemoveBulkContact(contact.id, e)}
                           className="hover:text-red-500 transition-colors"
@@ -506,7 +511,7 @@ export const Composer: React.FC<ComposerProps> = ({
                                     })()}
                                   </div>
                                   <div className="min-w-0">
-                                    <p className="font-semibold text-[13px] text-[#111111] dark:text-[#ececf1] truncate">{contact.name}</p>
+                                    <p className="font-semibold text-[13px] text-[#111111] dark:text-[#ececf1] truncate">{toProperCase(contact.name)}</p>
                                     <p className="text-[11px] text-gray-500 truncate">{contact.phone}</p>
                                   </div>
                                 </div>
