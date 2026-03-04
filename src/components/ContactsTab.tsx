@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { fetchContacts, addContact, updateContact, deleteContact } from "../api/contacts";
 import type { Contact } from "../types/Contact";
 import { FiSearch, FiX, FiMail, FiCheck, FiUser, FiPlus, FiTrash2, FiMoreVertical, FiEdit2, FiMessageCircle, FiLoader } from "react-icons/fi";
@@ -21,6 +21,9 @@ export const ContactsTab: React.FC<ContactsTabProps> = ({ onSendToComposer, onVi
   const [editingContact, setEditingContact] = useState<Contact | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [isPullRefreshing, setIsPullRefreshing] = useState(false);
+  const touchStartY = useRef<number>(0);
+  const listRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     fetchContacts()
@@ -28,6 +31,18 @@ export const ContactsTab: React.FC<ContactsTabProps> = ({ onSendToComposer, onVi
       .catch(console.error)
       .finally(() => setLoading(false));
   }, []);
+
+  const refreshContacts = async () => {
+    setIsPullRefreshing(true);
+    try {
+      const data = await fetchContacts();
+      setContacts(data);
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setIsPullRefreshing(false);
+    }
+  };
 
   // Close menu when clicking outside
   useEffect(() => {
@@ -97,17 +112,17 @@ export const ContactsTab: React.FC<ContactsTabProps> = ({ onSendToComposer, onVi
   const handleAddContact = async () => {
     const digits = newContactPhone.replace(/\D/g, "");
     if (!newContactName.trim() || digits.length < 7) return;
-    
+
     setIsSubmitting(true);
     setError(null);
-    
+
     try {
       // Add to GHL
       const newContact = await addContact({
         name: newContactName.trim(),
         phone: "+63" + digits,
       });
-      
+
       if (newContact) {
         // Add to local contacts list (don't select automatically)
         setContacts((prev) => [...prev, newContact]);
@@ -128,12 +143,16 @@ export const ContactsTab: React.FC<ContactsTabProps> = ({ onSendToComposer, onVi
 
   const handleEditContact = async () => {
     if (!editingContact) return;
-    const digits = editingContact.phone.replace(/\D/g, "");
-    if (!editingContact.name.trim() || digits.length < 7) return;
-    
+    let digits = editingContact.phone.replace(/\D/g, "");
+    // Normalize: strip leading country code so we always send 10-digit local number
+    if (digits.startsWith("639")) digits = digits.slice(2);      // 639XXXXXXXXX → 9XXXXXXXXX
+    else if (digits.startsWith("63")) digits = digits.slice(2);  // 63XXXXXXXXX  → XXXXXXXXX
+    else if (digits.startsWith("0")) digits = digits.slice(1);   // 09XXXXXXXXX  → 9XXXXXXXXX
+    if (!editingContact.name.trim() || digits.length < 9) return;
+
     setIsSubmitting(true);
     setError(null);
-    
+
     try {
       // Only update if it's a GHL contact (has numeric ID, not starting with 'manual-')
       if (!editingContact.id.startsWith('manual-')) {
@@ -142,25 +161,25 @@ export const ContactsTab: React.FC<ContactsTabProps> = ({ onSendToComposer, onVi
           name: editingContact.name.trim(),
           phone: "+63" + digits,
         });
-        
+
         if (updated) {
           // Update contact in list
-          setContacts((prev) => prev.map((c) => 
+          setContacts((prev) => prev.map((c) =>
             c.id === editingContact.id ? { ...editingContact, name: updated.name, phone: updated.phone } : c
           ));
-          
+
           // Update selected contacts if this one was selected
-          setSelectedContacts((prev) => prev.map((c) => 
+          setSelectedContacts((prev) => prev.map((c) =>
             c.id === editingContact.id ? { ...c, name: updated.name, phone: updated.phone } : c
           ));
         }
       } else {
         // For manual contacts, just update locally
-        setContacts((prev) => prev.map((c) => 
+        setContacts((prev) => prev.map((c) =>
           c.id === editingContact.id ? editingContact : c
         ));
-        
-        setSelectedContacts((prev) => prev.map((c) => 
+
+        setSelectedContacts((prev) => prev.map((c) =>
           c.id === editingContact.id ? editingContact : c
         ));
       }
@@ -176,16 +195,16 @@ export const ContactsTab: React.FC<ContactsTabProps> = ({ onSendToComposer, onVi
 
   const handleDeleteContact = async (contactId: string, e?: React.MouseEvent) => {
     e?.stopPropagation();
-    
+
     setIsSubmitting(true);
     setError(null);
-    
+
     try {
       // Only delete from GHL if it's a GHL contact (has numeric ID, not starting with 'manual-')
       if (!contactId.startsWith('manual-')) {
         await deleteContact(contactId);
       }
-      
+
       // Remove from contacts list
       setContacts((prev) => prev.filter((c) => c.id !== contactId));
       // Remove from selected if selected
@@ -259,11 +278,10 @@ export const ContactsTab: React.FC<ContactsTabProps> = ({ onSendToComposer, onVi
             <div className="flex items-center gap-2 sm:gap-3">
               <button
                 onClick={isAllSelected ? handleClearSelection : handleSelectAll}
-                className={`flex items-center gap-2 px-3 sm:px-4 py-2 rounded-xl text-[12px] font-semibold transition-all duration-200 ${
-                  isAllSelected
-                    ? "bg-red-50 dark:bg-red-500/10 text-red-600 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-500/20"
-                    : "bg-[#2b83fa]/10 dark:bg-[#2b83fa]/20 text-[#2b83fa] hover:bg-[#2b83fa]/20 dark:hover:bg-[#2b83fa]/30"
-                }`}
+                className={`flex items-center gap-2 px-3 sm:px-4 py-2 rounded-xl text-[12px] font-semibold transition-all duration-200 ${isAllSelected
+                  ? "bg-red-50 dark:bg-red-500/10 text-red-600 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-500/20"
+                  : "bg-[#2b83fa]/10 dark:bg-[#2b83fa]/20 text-[#2b83fa] hover:bg-[#2b83fa]/20 dark:hover:bg-[#2b83fa]/30"
+                  }`}
               >
                 <FiCheck className="h-3.5 w-3.5" />
                 <span className="hidden sm:inline">{isAllSelected ? "Deselect All" : "Select All"}</span>
@@ -299,8 +317,26 @@ export const ContactsTab: React.FC<ContactsTabProps> = ({ onSendToComposer, onVi
       </div>
 
       {/* Contacts List */}
-      <div className="flex-1 overflow-y-auto px-3 md:px-6 py-4 custom-scrollbar">
+      <div
+        ref={listRef}
+        className="flex-1 overflow-y-auto px-3 md:px-6 py-4 custom-scrollbar"
+        onTouchStart={(e) => { touchStartY.current = e.touches[0].clientY; }}
+        onTouchEnd={(e) => {
+          const delta = e.changedTouches[0].clientY - touchStartY.current;
+          const atTop = (listRef.current?.scrollTop ?? 0) === 0;
+          if (delta > 60 && atTop && !isPullRefreshing) refreshContacts();
+        }}
+      >
         <div className="max-w-5xl mx-auto">
+          {/* Pull-to-refresh spinner */}
+          {isPullRefreshing && (
+            <div className="flex justify-center items-center py-3">
+              <svg className="animate-spin h-5 w-5 text-[#2b83fa]" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z" />
+              </svg>
+            </div>
+          )}
           {groupedContacts.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-16">
               <div className="w-16 h-16 mb-4 rounded-2xl bg-gray-100 dark:bg-white/5 flex items-center justify-center">
@@ -409,7 +445,7 @@ export const ContactsTab: React.FC<ContactsTabProps> = ({ onSendToComposer, onVi
                               <FiMoreVertical className="h-4 w-4" />
                             </button>
                             {openMenuId === contact.id && (
-                              <div 
+                              <div
                                 className="absolute right-0 top-full mt-1 bg-white dark:bg-[#2d2d2d] rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 py-1 min-w-[120px] z-50"
                                 onClick={(e) => e.stopPropagation()}
                               >
@@ -491,7 +527,7 @@ export const ContactsTab: React.FC<ContactsTabProps> = ({ onSendToComposer, onVi
       {/* Delete Confirmation Modal */}
       {deleteConfirmId && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-          <div 
+          <div
             className="absolute inset-0 bg-black/50 backdrop-blur-sm"
             onClick={() => setDeleteConfirmId(null)}
           />
@@ -542,7 +578,7 @@ export const ContactsTab: React.FC<ContactsTabProps> = ({ onSendToComposer, onVi
       {/* Add Contact Modal */}
       {isAddModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-          <div 
+          <div
             className="absolute inset-0 bg-black/50 backdrop-blur-sm"
             onClick={() => setIsAddModalOpen(false)}
           />
@@ -561,7 +597,7 @@ export const ContactsTab: React.FC<ContactsTabProps> = ({ onSendToComposer, onVi
                 <FiX className="h-5 w-5" />
               </button>
             </div>
-            
+
             <div className="space-y-4">
               {error && (
                 <div className="p-3 bg-red-50 dark:bg-red-500/10 border border-red-200 dark:border-red-500/20 rounded-xl">
@@ -580,7 +616,7 @@ export const ContactsTab: React.FC<ContactsTabProps> = ({ onSendToComposer, onVi
                   className="w-full px-3 sm:px-4 py-2.5 sm:py-3 bg-gray-50 dark:bg-[#111111] border border-gray-200/60 dark:border-white/10 rounded-xl text-[14px] font-medium text-[#111111] dark:text-[#ececf1] placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#2b83fa]/20 focus:border-[#2b83fa] transition-all"
                 />
               </div>
-              
+
               <div>
                 <label className="block text-[11px] sm:text-[12px] font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">
                   Phone Number
@@ -646,7 +682,7 @@ export const ContactsTab: React.FC<ContactsTabProps> = ({ onSendToComposer, onVi
       {/* Edit Contact Modal */}
       {editingContact && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-          <div 
+          <div
             className="absolute inset-0 bg-black/50 backdrop-blur-sm"
             onClick={() => setEditingContact(null)}
           />
@@ -665,7 +701,7 @@ export const ContactsTab: React.FC<ContactsTabProps> = ({ onSendToComposer, onVi
                 <FiX className="h-5 w-5" />
               </button>
             </div>
-            
+
             <div className="space-y-4">
               {error && (
                 <div className="p-3 bg-red-50 dark:bg-red-500/10 border border-red-200 dark:border-red-500/20 rounded-xl">
@@ -684,7 +720,7 @@ export const ContactsTab: React.FC<ContactsTabProps> = ({ onSendToComposer, onVi
                   className="w-full px-3 sm:px-4 py-2.5 sm:py-3 bg-gray-50 dark:bg-[#111111] border border-gray-200/60 dark:border-white/10 rounded-xl text-[14px] font-medium text-[#111111] dark:text-[#ececf1] placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#2b83fa]/20 focus:border-[#2b83fa] transition-all"
                 />
               </div>
-              
+
               <div>
                 <label className="block text-[11px] sm:text-[12px] font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">
                   Phone Number

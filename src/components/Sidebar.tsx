@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import { fetchContacts } from "../api/contacts";
 import type { Contact } from "../types/Contact";
 import type { BulkMessageHistoryItem } from "../types/Sms";
@@ -35,22 +35,31 @@ export const Sidebar: React.FC<SidebarProps> = ({
   const [editingBulkName, setEditingBulkName] = useState("");
   const [deletingContactId, setDeletingContactId] = useState<string | null>(null);
   const [openMenuId, setOpenMenuId] = useState<string | null>(null);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const touchStartY = useRef<number>(0);
+  const contactsListRef = useRef<HTMLDivElement>(null);
 
-  const loadContacts = useCallback(() => {
-    fetchContacts().then(data => {
+  const loadContacts = useCallback(async (showSpinner = false) => {
+    if (showSpinner) setIsRefreshing(true);
+    try {
+      const data = await fetchContacts();
       const deletedIds = getDeletedContactIds();
       const filtered = data.filter(c => !deletedIds.includes(c.id));
       setContacts(filtered);
-    }).catch(console.error);
+    } catch (e) {
+      console.error(e);
+    } finally {
+      if (showSpinner) setIsRefreshing(false);
+    }
   }, []);
 
   useEffect(() => {
     loadContacts();
 
-    // Poll for new contacts every 15 seconds
+    // Poll for new contacts every 5 seconds
     const contactInterval = setInterval(() => {
-      loadContacts();
-    }, 15000);
+      loadContacts(false);
+    }, 5000);
 
     // Listen for bulk message sent events to refresh history
     const handleBulkMessageSent = () => {
@@ -260,8 +269,26 @@ export const Sidebar: React.FC<SidebarProps> = ({
               <span className="text-[11px] font-medium text-[#5f6368] dark:text-[#9aa0a6] bg-[#f1f3f4] dark:bg-[#3c4043] px-1.5 py-0.5 rounded">{contacts.length}</span>
             </div>
 
-            {/* Direct Messages Content - Independent scrollable area */}
-            <div className={`overflow-y-auto custom-scrollbar transition-all duration-300 ${directMessagesExpanded ? 'max-h-[40vh] opacity-100 mb-2' : 'max-h-0 opacity-0'}`}>
+            {/* Direct Messages Content - Pull to refresh + Independent scrollable area */}
+            <div
+              ref={contactsListRef}
+              className={`overflow-y-auto custom-scrollbar transition-all duration-300 ${directMessagesExpanded ? 'max-h-[40vh] opacity-100 mb-2' : 'max-h-0 opacity-0'}`}
+              onTouchStart={(e) => { touchStartY.current = e.touches[0].clientY; }}
+              onTouchEnd={(e) => {
+                const delta = e.changedTouches[0].clientY - touchStartY.current;
+                const atTop = (contactsListRef.current?.scrollTop ?? 0) === 0;
+                if (delta > 60 && atTop) loadContacts(true);
+              }}
+            >
+              {/* Pull-to-refresh indicator */}
+              {isRefreshing && (
+                <div className="flex justify-center items-center py-2">
+                  <svg className="animate-spin h-4 w-4 text-[#2b83fa]" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z" />
+                  </svg>
+                </div>
+              )}
               <div className="flex flex-col gap-0.5">
                 {contacts.map(contact => (
                   <div
@@ -363,7 +390,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                   </div>
                 ))}
               </div>
-            </div>
+            </div> {/* end contacts scrollable */}
 
             {/* Bulk Messages Header */}
             <>

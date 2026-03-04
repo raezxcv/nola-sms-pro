@@ -3,7 +3,7 @@ import { fetchSmsLogs } from "../api/sms";
 import type { Message, SmsLog } from "../types/Sms";
 import { getCachedMessages, setCachedMessages, updateMessageInCache } from "../utils/storage";
 
-const POLL_INTERVAL = 10000; // 10 seconds
+const POLL_INTERVAL = 5000; // 5 seconds
 
 export const useMessages = (phoneNumber: string | undefined) => {
     const [messages, setMessages] = useState<Message[]>([]);

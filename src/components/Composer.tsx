@@ -59,6 +59,9 @@ export const Composer: React.FC<ComposerProps> = ({
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const emojiPickerRef = useRef<HTMLDivElement>(null);
+  const msgAreaRef = useRef<HTMLDivElement>(null);
+  const touchStartYMsg = useRef<number>(0);
+  const [isPullRefreshing, setIsPullRefreshing] = useState(false);
 
   // Interactive features state
   const [isEmojiPickerOpen, setIsEmojiPickerOpen] = useState(false);
@@ -550,8 +553,30 @@ export const Composer: React.FC<ComposerProps> = ({
       </div>
 
       {/* 2. Message History Area */}
-      <div className="flex-1 overflow-y-auto px-6 py-4 space-y-1 flex flex-col custom-scrollbar">
+      <div
+        ref={msgAreaRef}
+        className="flex-1 overflow-y-auto px-6 py-4 space-y-1 flex flex-col custom-scrollbar"
+        onTouchStart={(e) => { touchStartYMsg.current = e.touches[0].clientY; }}
+        onTouchEnd={async (e) => {
+          const delta = e.changedTouches[0].clientY - touchStartYMsg.current;
+          const atTop = (msgAreaRef.current?.scrollTop ?? 0) === 0;
+          if (delta > 60 && atTop && !isPullRefreshing) {
+            setIsPullRefreshing(true);
+            await refresh();
+            setIsPullRefreshing(false);
+          }
+        }}
+      >
         <div className="max-w-5xl mx-auto w-full h-full flex flex-col">
+          {/* Pull-to-refresh spinner */}
+          {isPullRefreshing && (
+            <div className="flex justify-center items-center py-2">
+              <svg className="animate-spin h-5 w-5 text-[#2b83fa]" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z" />
+              </svg>
+            </div>
+          )}
           {historyLoading && messages.length === 0 ? (
             <div className="flex-1 flex items-center justify-center">
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#2b83fa]"></div>

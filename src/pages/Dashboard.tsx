@@ -17,9 +17,22 @@ interface DashboardProps {
 }
 
 export const Dashboard: React.FC<DashboardProps> = ({ isMobileMenuOpen: externalIsMobileMenuOpen, onMobileMenuToggle, darkMode, toggleDarkMode }) => {
-  const [selectedContacts, setSelectedContacts] = useState<Contact[]>([]);
-  const [currentView, setCurrentView] = useState<ViewTab>('compose');
-  const [activeContact, setActiveContact] = useState<Contact | null>(null);
+  const [activeContact, setActiveContact] = useState<Contact | null>(() => {
+    try {
+      const saved = localStorage.getItem('nola_active_contact');
+      return saved ? JSON.parse(saved) : null;
+    } catch { return null; }
+  });
+  const [selectedContacts, setSelectedContacts] = useState<Contact[]>(() => {
+    try {
+      const saved = localStorage.getItem('nola_active_contact');
+      const contact = saved ? JSON.parse(saved) : null;
+      return contact ? [contact] : [];
+    } catch { return []; }
+  });
+  const [currentView, setCurrentView] = useState<ViewTab>(
+    () => (localStorage.getItem('nola_active_tab') as ViewTab) || 'compose'
+  );
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
 
@@ -28,13 +41,16 @@ export const Dashboard: React.FC<DashboardProps> = ({ isMobileMenuOpen: external
   const handleSelectContact = (contact: Contact) => {
     setSelectedContacts([contact]);
     setActiveContact(contact);
+    localStorage.setItem('nola_active_contact', JSON.stringify(contact));
     setCurrentView('compose');
+    localStorage.setItem('nola_active_tab', 'compose');
   };
 
   const handleSelectBulkMessage = (bulkMessage: BulkMessageHistoryItem) => {
     console.log('Selected bulk message:', bulkMessage);
     setSelectedContacts([]);
     setActiveContact(null);
+    localStorage.removeItem('nola_active_contact');
     setCurrentView('compose');
   };
 
@@ -42,23 +58,30 @@ export const Dashboard: React.FC<DashboardProps> = ({ isMobileMenuOpen: external
     setSelectedContacts(contacts);
     if (contacts.length === 1) {
       setActiveContact(contacts[0]);
+      localStorage.setItem('nola_active_contact', JSON.stringify(contacts[0]));
     } else {
       setActiveContact(null);
+      localStorage.removeItem('nola_active_contact');
     }
     setCurrentView('compose');
+    localStorage.setItem('nola_active_tab', 'compose');
   };
 
   const handleViewMessages = (contact: Contact) => {
     setActiveContact(contact);
     setSelectedContacts([contact]);
+    localStorage.setItem('nola_active_contact', JSON.stringify(contact));
     setCurrentView('compose');
+    localStorage.setItem('nola_active_tab', 'compose');
   };
 
   const handleTabChange = (tab: ViewTab) => {
     setCurrentView(tab);
+    localStorage.setItem('nola_active_tab', tab);
     if (tab === 'compose') {
       setSelectedContacts([]);
       setActiveContact(null);
+      localStorage.removeItem('nola_active_contact');
     }
     // On mobile, close sidebar when selecting a main action area
     if (window.innerWidth < 768 && tab !== 'compose' && onMobileMenuToggle) {
