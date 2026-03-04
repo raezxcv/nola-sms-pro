@@ -102,7 +102,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           firstName,
           lastName,
           phone: phoneE164,
-          email: email || '',
+          ...(email && { email }),
           locationId: GHL_LOCATION_ID
         })
       });
@@ -160,7 +160,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           firstName,
           lastName,
           phone: phoneE164,
-          email: email || ''
+          ...(email && { email })
         })
       });
 
