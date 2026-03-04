@@ -1,7 +1,6 @@
 import type { Contact } from "../types/Contact";
 
-const WEBHOOK_URL = "/api/contacts";
-const WEBHOOK_SECRET = "f7RkQ2pL9zV3tX8cB1nS4yW6";
+const GHL_WEBHOOK_URL = "/api/ghl-contacts";
 
 // Fallback mock contacts if API fails
 const mockContacts: Contact[] = [
@@ -14,30 +13,65 @@ const mockContacts: Contact[] = [
 
 export const fetchContacts = async (): Promise<Contact[]> => {
   try {
-    const res = await fetch(WEBHOOK_URL, {
-      headers: {
-        'X-Webhook-Secret': WEBHOOK_SECRET,
-      },
-    });
+    const res = await fetch(GHL_WEBHOOK_URL);
     
     if (!res.ok) {
-      console.error('API returned error:', res.status, res.statusText);
-      // Return mock data on error
-      return mockContacts;
+      console.error('GHL API returned error:', res.status, res.statusText);
+      // Fall back to extracting from messages
+      return fetchContactsFromMessages();
     }
     
     const data = await res.json();
     
     // Check if we got valid data
     if (!Array.isArray(data) || data.length === 0) {
-      console.log('No contacts from API, using mock data');
-      return mockContacts;
+      console.log('No contacts from GHL API, trying messages API');
+      return fetchContactsFromMessages();
     }
     
+    console.log('GHL Contacts fetched:', data.length);
     return data;
   } catch (error) {
-    console.error('Failed to fetch contacts:', error);
-    // Return mock data on network error
+    console.error('Failed to fetch GHL contacts:', error);
+    return fetchContactsFromMessages();
+  }
+};
+
+// Fallback: Extract contacts from messages API
+const fetchContactsFromMessages = async (): Promise<Contact[]> => {
+  try {
+    const res = await fetch('/api/messages?direction=outbound&limit=1000');
+    if (!res.ok) return mockContacts;
+    
+    const data = await res.json();
+    const messages: any[] = data.data || [];
+    
+    const contactsMap: Record<string, Contact> = {};
+    
+    for (const msg of messages) {
+      for (const number of msg.numbers || []) {
+        const digits = number.replace(/\D/g, "");
+        let normalizedNumber = digits;
+        
+        if (digits.startsWith("639") && digits.length === 12) {
+          normalizedNumber = "0" + digits.substring(2);
+        } else if (digits.startsWith("9") && digits.length === 10) {
+          normalizedNumber = "0" + digits;
+        }
+        
+        if (normalizedNumber && !contactsMap[normalizedNumber]) {
+          contactsMap[normalizedNumber] = {
+            id: normalizedNumber,
+            name: normalizedNumber,
+            phone: normalizedNumber,
+          };
+        }
+      }
+    }
+    
+    const contacts = Object.values(contactsMap);
+    return contacts.length > 0 ? contacts : mockContacts;
+  } catch {
     return mockContacts;
   }
 };
