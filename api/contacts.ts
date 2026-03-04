@@ -1,83 +1,73 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 
-const CLOUD_RUN_URL = "https://smspro-api.nolacrm.io";
-const WEBHOOK_SECRET = "f7RkQ2pL9zV3tX8cB1nS4yW6";
+const GHL_API_URL = "https://services.leadconnectorhq.com";
+const GHL_LOCATION_ID = "ugBqfQsPtGijLjrmLdmA";
+const GHL_API_TOKEN = "pit-9c4000ad-590a-47b6-8572-e919dc20d39c";
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
-  // Set CORS headers for the response
+  // Set CORS headers
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'X-Webhook-Secret, Content-Type');
+  res.setHeader('Access-Control-Allow-Headers', 'Authorization, Content-Type');
   res.setHeader('Content-Type', 'application/json');
 
-  // Handle preflight
   if (req.method === 'OPTIONS') {
     return res.status(200).end();
   }
 
   try {
     if (req.method === 'GET') {
-      // Fetch messages to extract unique phone numbers as contacts
-      const messagesUrl = `${CLOUD_RUN_URL}/api/messages?direction=outbound&limit=500`;
-      console.log('Fetching messages from:', messagesUrl);
+      // Fetch contacts from GHL API
+      const url = `${GHL_API_URL}/contacts?locationId=${GHL_LOCATION_ID}&limit=100`;
+      console.log('Fetching from GHL API:', url);
       
-      const response = await fetch(messagesUrl, {
+      const response = await fetch(url, {
         method: 'GET',
         headers: {
-          'X-Webhook-Secret': WEBHOOK_SECRET,
+          'Authorization': `Bearer ${GHL_API_TOKEN}`,
           'Content-Type': 'application/json',
         },
       });
 
       if (!response.ok) {
         const errorText = await response.text();
-        console.error('Messages API error:', response.status, errorText);
+        console.error('GHL API error:', response.status, errorText);
         return res.status(response.status).json({ 
-          error: 'Failed to fetch messages',
+          error: 'Failed to fetch contacts from GHL',
           details: errorText 
         });
       }
 
       const data = await response.json();
-      console.log('Messages response:', data);
+      console.log('GHL API response:', data);
       
-      // Extract unique contacts from messages
-      const messages = data.data || [];
-      const contactsMap: Record<string, { id: string; name: string; phone: string }> = {};
-      
-      for (const msg of messages) {
-        for (const number of msg.numbers || []) {
-          // Normalize phone number
-          const digits = number.replace(/\D/g, "");
-          let normalizedNumber = digits;
-          
-          if (digits.startsWith("639") && digits.length === 12) {
-            normalizedNumber = "0" + digits.substring(2);
-          } else if (digits.startsWith("9") && digits.length === 10) {
-            normalizedNumber = "0" + digits;
-          }
-          
-          if (normalizedNumber && !contactsMap[normalizedNumber]) {
-            contactsMap[normalizedNumber] = {
-              id: normalizedNumber,
-              name: normalizedNumber,
-              phone: normalizedNumber,
-            };
-          }
-        }
+      // Handle GHL response format - contacts might be in data.contacts or data
+      let contacts: any[] = [];
+      if (Array.isArray(data)) {
+        contacts = data;
+      } else if (data.contacts) {
+        contacts = data.contacts;
+      } else if (data.data) {
+        contacts = data.data;
       }
       
-      const contacts = Object.values(contactsMap);
-      console.log('Extracted contacts from messages:', contacts.length);
-      return res.status(200).json(contacts);
+      // Transform to our format
+      const transformedContacts = contacts.map((contact: any) => ({
+        id: contact.id,
+        name: contact.name || contact.firstName + ' ' + (contact.lastName || ''),
+        phone: contact.phone || contact.mobileNumber || '',
+        email: contact.email || '',
+      })).filter((c: any) => c.phone);
+      
+      console.log('Transformed contacts:', transformedContacts.length);
+      return res.status(200).json(transformedContacts);
     } else {
       return res.status(405).json({ error: 'Method not allowed' });
     }
   } catch (error) {
-    console.error('Proxy Error:', error);
+    console.error('GHL API Error:', error);
     return res.status(500).json({
-      success: false,
-      error: 'Proxy failed',
+      error: 'Failed to fetch contacts',
       message: error instanceof Error ? error.message : 'Unknown error',
     });
   }
