@@ -1,12 +1,15 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { fetchSmsLogs } from "../api/sms";
 import type { Message, SmsLog } from "../types/Sms";
 import { getCachedMessages, setCachedMessages, updateMessageInCache } from "../utils/storage";
+
+const POLL_INTERVAL = 10000; // 10 seconds
 
 export const useMessages = (phoneNumber: string | undefined) => {
     const [messages, setMessages] = useState<Message[]>([]);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
+    const isInitialLoad = useRef(true);
 
     const formatLogToMessage = (log: SmsLog): Message => {
         let date: Date;
@@ -29,7 +32,7 @@ export const useMessages = (phoneNumber: string | undefined) => {
         };
     };
 
-    const fetchHistory = useCallback(async () => {
+    const fetchHistory = useCallback(async (showLoading = true) => {
         // Try to load from cache first
         if (phoneNumber) {
             const cached = getCachedMessages(phoneNumber);
@@ -39,18 +42,19 @@ export const useMessages = (phoneNumber: string | undefined) => {
         }
 
         if (!phoneNumber) {
-            // Don't clear messages - keep them cached for when user returns
             return;
         }
 
-        setLoading(true);
+        // Only show loading spinner on initial load, not background polls
+        if (showLoading) {
+            setLoading(true);
+        }
         setError(null);
         try {
             const logs = await fetchSmsLogs(phoneNumber);
             const formattedMessages = logs.map(formatLogToMessage);
 
             // Merge with locally-sent messages that aren't in the API yet
-            // (messages with temp- IDs that were sent through the app)
             const cached = getCachedMessages(phoneNumber);
             const localOnlyMessages = (cached || []).filter(msg =>
                 msg.id.startsWith('temp-') &&
@@ -59,10 +63,8 @@ export const useMessages = (phoneNumber: string | undefined) => {
             );
 
             const mergedMessages = [...formattedMessages, ...localOnlyMessages];
-            // Sort by date_created ascending as requested
             mergedMessages.sort((a, b) => a.timestamp.getTime() - b.timestamp.getTime());
             setMessages(mergedMessages);
-            // Save merged result to cache
             setCachedMessages(phoneNumber, mergedMessages);
         } catch (err) {
             setError(err instanceof Error ? err.message : "Failed to load history");
@@ -71,9 +73,22 @@ export const useMessages = (phoneNumber: string | undefined) => {
         }
     }, [phoneNumber]);
 
+    // Initial fetch
     useEffect(() => {
-        fetchHistory();
+        isInitialLoad.current = true;
+        fetchHistory(true);
     }, [fetchHistory]);
+
+    // Real-time polling - refresh every 10 seconds
+    useEffect(() => {
+        if (!phoneNumber) return;
+
+        const interval = setInterval(() => {
+            fetchHistory(false); // Silent background refresh
+        }, POLL_INTERVAL);
+
+        return () => clearInterval(interval);
+    }, [phoneNumber, fetchHistory]);
 
     const addOptimisticMessage = (text: string, senderName: string): string => {
         const id = `temp-${Date.now()}`;

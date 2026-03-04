@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { fetchContacts } from "../api/contacts";
 import type { Contact } from "../types/Contact";
 import type { BulkMessageHistoryItem } from "../types/Sms";
@@ -36,22 +36,33 @@ export const Sidebar: React.FC<SidebarProps> = ({
   const [deletingContactId, setDeletingContactId] = useState<string | null>(null);
   const [openMenuId, setOpenMenuId] = useState<string | null>(null);
 
-  useEffect(() => {
+  const loadContacts = useCallback(() => {
     fetchContacts().then(data => {
       const deletedIds = getDeletedContactIds();
       const filtered = data.filter(c => !deletedIds.includes(c.id));
       setContacts(filtered);
     }).catch(console.error);
+  }, []);
+
+  useEffect(() => {
+    loadContacts();
+
+    // Poll for new contacts every 15 seconds
+    const contactInterval = setInterval(() => {
+      loadContacts();
+    }, 15000);
 
     // Listen for bulk message sent events to refresh history
     const handleBulkMessageSent = () => {
       setBulkHistory(getBulkMessageHistory());
     };
     window.addEventListener('bulk-message-sent', handleBulkMessageSent);
+
     return () => {
+      clearInterval(contactInterval);
       window.removeEventListener('bulk-message-sent', handleBulkMessageSent);
     };
-  }, []);
+  }, [loadContacts]);
 
   // Close menu when clicking outside
   useEffect(() => {
