@@ -622,19 +622,15 @@ export const ContactsTab: React.FC<ContactsTabProps> = ({ onSendToComposer, onVi
                   Phone Number
                 </label>
                 <div className="relative">
-                  <span className="absolute left-3 sm:left-4 top-1/2 -translate-y-1/2 text-[14px] font-medium text-gray-500 dark:text-gray-400">+63</span>
                   <input
                     type="tel"
                     inputMode="tel"
                     value={newContactPhone}
                     onChange={(e) => {
-                      // Only allow numbers
                       const digits = e.target.value.replace(/\D/g, "");
-                      // Format: XXXX XXX XXXX (11 digits after +63)
                       let formatted = "";
                       if (digits.length > 0) {
                         formatted = digits.substring(0, 11);
-                        // Apply formatting
                         if (formatted.length > 7) {
                           formatted = `${formatted.slice(0, 4)} ${formatted.slice(4, 7)} ${formatted.slice(7)}`;
                         } else if (formatted.length > 3) {
@@ -643,8 +639,8 @@ export const ContactsTab: React.FC<ContactsTabProps> = ({ onSendToComposer, onVi
                       }
                       setNewContactPhone(formatted);
                     }}
-                    placeholder="912 345 6789"
-                    className="w-full pl-12 sm:pl-16 pr-3 sm:pr-4 py-2.5 sm:py-3 bg-gray-50 dark:bg-[#111111] border border-gray-200/60 dark:border-white/10 rounded-xl text-[14px] font-medium text-[#111111] dark:text-[#ececf1] placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#2b83fa]/20 focus:border-[#2b83fa] transition-all"
+                    placeholder="09XX XXX XXXX"
+                    className="w-full px-3 sm:px-4 py-2.5 sm:py-3 bg-gray-50 dark:bg-[#111111] border border-gray-200/60 dark:border-white/10 rounded-xl text-[14px] font-medium text-[#111111] dark:text-[#ececf1] placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#2b83fa]/20 focus:border-[#2b83fa] transition-all"
                   />
                 </div>
               </div>
@@ -726,21 +722,15 @@ export const ContactsTab: React.FC<ContactsTabProps> = ({ onSendToComposer, onVi
                   Phone Number
                 </label>
                 <div className="relative">
-                  {editingContact.phone === '' || !editingContact.phone.startsWith('0') ? (
-                    <span className="absolute left-3 sm:left-4 top-1/2 -translate-y-1/2 text-[14px] font-medium text-gray-500 dark:text-gray-400">+63</span>
-                  ) : null}
                   <input
                     type="tel"
                     inputMode="tel"
                     value={editingContact.phone}
                     onChange={(e) => {
-                      // Only allow numbers
                       const digits = e.target.value.replace(/\D/g, "");
-                      // Format: XXXX XXX XXXX (11 digits after +63)
                       let formatted = "";
                       if (digits.length > 0) {
                         formatted = digits.substring(0, 11);
-                        // Apply formatting
                         if (formatted.length > 7) {
                           formatted = `${formatted.slice(0, 4)} ${formatted.slice(4, 7)} ${formatted.slice(7)}`;
                         } else if (formatted.length > 3) {
@@ -749,8 +739,8 @@ export const ContactsTab: React.FC<ContactsTabProps> = ({ onSendToComposer, onVi
                       }
                       setEditingContact({ ...editingContact, phone: formatted });
                     }}
-                    placeholder="912 345 6789"
-                    className={`w-full px-3 sm:px-4 py-2.5 sm:py-3 bg-gray-50 dark:bg-[#111111] border border-gray-200/60 dark:border-white/10 rounded-xl text-[14px] font-medium text-[#111111] dark:text-[#ececf1] placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#2b83fa]/20 focus:border-[#2b83fa] transition-all ${editingContact.phone === '' || !editingContact.phone.startsWith('0') ? 'pl-12 sm:pl-16' : 'pl-3 sm:pl-4'}`}
+                    placeholder="09XX XXX XXXX"
+                    className="w-full px-3 sm:px-4 py-2.5 sm:py-3 bg-gray-50 dark:bg-[#111111] border border-gray-200/60 dark:border-white/10 rounded-xl text-[14px] font-medium text-[#111111] dark:text-[#ececf1] placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#2b83fa]/20 focus:border-[#2b83fa] transition-all"
                   />
                 </div>
               </div>
