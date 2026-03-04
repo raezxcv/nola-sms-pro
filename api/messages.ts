@@ -41,7 +41,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return res.status(response.status).json(data);
     } else if (req.method === 'POST') {
       // POST /api/messages - send SMS
-      const cloudRunUrl = `${CLOUD_RUN_URL}/api/send_sms`;
+      const cloudRunUrl = `${CLOUD_RUN_URL}/webhook/send_sms`;
       console.log('Proxying POST to:', cloudRunUrl);
       console.log('Request body:', req.body);
       
