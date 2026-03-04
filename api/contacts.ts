@@ -35,6 +35,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             headers: {
               'Authorization': `Bearer ${GHL_API_TOKEN}`,
               'Content-Type': 'application/json',
+              'Version': '2021-07-28'
             },
             body: JSON.stringify({
               locationId: GHL_LOCATION_ID,
