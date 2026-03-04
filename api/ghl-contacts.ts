@@ -1,8 +1,8 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 
 const GHL_API_URL = "https://services.leadconnectorhq.com";
-const GHL_API_TOKEN = "sxtUvcl8Sm3ki3TRQz3x";
-const LOCATION_ID = "pit-34cb9a15-8bbe-49a8-b73d-b57e935c9ad9";
+const GHL_API_TOKEN = "pit-2c6e3df4-9472-4bed-bd7c-fbea8acb2abd";
+const LOCATION_ID = "ugBqfQsPtGijLjrmLdmA";
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   // Set CORS headers
