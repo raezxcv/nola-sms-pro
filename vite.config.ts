@@ -47,9 +47,31 @@ const smsProxyPlugin = () => ({
       }
     });
 
-    server.middlewares.use('/api/messages', (_req, res) => {
-      res.setHeader('Content-Type', 'application/json');
-      res.end(JSON.stringify([]));
+    server.middlewares.use('/api/messages', async (req, res) => {
+      try {
+        // Forward query params to the real backend
+        const url = new URL(req.url || '', 'http://localhost');
+        const queryString = url.search || '';
+        const cloudRunUrl = `https://smspro-api.nolacrm.io/api/messages${queryString}`;
+
+        console.log('Dev proxy GET:', cloudRunUrl);
+
+        const response = await fetch(cloudRunUrl, {
+          method: 'GET',
+          headers: {
+            'X-Webhook-Secret': 'f7RkQ2pL9zV3tX8cB1nS4yW6',
+            'Content-Type': 'application/json',
+          },
+        });
+
+        const data = await response.json();
+        res.setHeader('Content-Type', 'application/json');
+        res.end(JSON.stringify(data));
+      } catch (error) {
+        console.error('Dev proxy error for /api/messages:', error);
+        res.setHeader('Content-Type', 'application/json');
+        res.end(JSON.stringify({ status: 'error', message: 'Failed to fetch messages from backend' }));
+      }
     });
 
     server.middlewares.use('/api/contacts', (_req, res) => {
