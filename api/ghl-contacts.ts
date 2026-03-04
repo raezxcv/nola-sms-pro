@@ -1,7 +1,7 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 
 const GHL_API_URL = "https://services.leadconnectorhq.com";
-const GHL_API_TOKEN = "pit-2c6e3df4-9472-4bed-bd7c-fbea8acb2abd";
+const GHL_API_TOKEN = "pit-c160b778-6b64-400d-b35b-e0be30dfee8c";
 const LOCATION_ID = "ugBqfQsPtGijLjrmLdmA";
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
