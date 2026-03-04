@@ -64,16 +64,26 @@ export const fetchSmsLogs = async (phoneNumber: string): Promise<SmsLog[]> => {
     if (!res.ok) throw new Error("Failed to fetch message history");
     const data = await res.json();
     console.log('SMS Logs Response:', data);
-    
+
     // Filter messages client-side - only include messages where the phone number is in the numbers array
     const allMessages: SmsLog[] = data.data || [];
+
+    // Debug: show what we're comparing
+    console.log(`🔍 Looking for contact number: ${formattedNumber}`);
+    console.log(`📦 Total messages from API: ${allMessages.length}`);
+    allMessages.forEach((log, i) => {
+      const rawNumbers = log.numbers || [];
+      const normalizedNumbers = rawNumbers.map(n => normalizePHNumber(n)).filter(Boolean);
+      const match = normalizedNumbers.includes(formattedNumber);
+      console.log(`  Message ${i + 1}: "${log.message?.substring(0, 30)}..." | raw numbers: [${rawNumbers.join(', ')}] → normalized: [${normalizedNumbers.join(', ')}] | match: ${match ? '✅' : '❌'}`);
+    });
+
     const filteredMessages = allMessages.filter(log => {
-      // Normalize all numbers in the array for comparison
       const normalizedNumbers = (log.numbers || []).map(n => normalizePHNumber(n)).filter(Boolean);
       return normalizedNumbers.includes(formattedNumber);
     });
-    
-    console.log('Filtered messages for', formattedNumber, ':', filteredMessages);
+
+    console.log(`✅ Filtered messages for ${formattedNumber}: ${filteredMessages.length} found`);
     return filteredMessages;
   } catch (error) {
     console.error("Fetch Logs Error:", error);
@@ -111,7 +121,7 @@ export const sendSms = async (
   };
 
   console.log("Sending SMS to new backend:", payload);
-    console.log("Sending to:", WEBHOOK_URL);
+  console.log("Sending to:", WEBHOOK_URL);
 
   try {
     const res = await fetch(WEBHOOK_URL, {

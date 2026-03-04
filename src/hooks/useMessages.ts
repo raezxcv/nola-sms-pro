@@ -37,7 +37,7 @@ export const useMessages = (phoneNumber: string | undefined) => {
                 setMessages(cached);
             }
         }
-        
+
         if (!phoneNumber) {
             // Don't clear messages - keep them cached for when user returns
             return;
@@ -48,11 +48,22 @@ export const useMessages = (phoneNumber: string | undefined) => {
         try {
             const logs = await fetchSmsLogs(phoneNumber);
             const formattedMessages = logs.map(formatLogToMessage);
+
+            // Merge with locally-sent messages that aren't in the API yet
+            // (messages with temp- IDs that were sent through the app)
+            const cached = getCachedMessages(phoneNumber);
+            const localOnlyMessages = (cached || []).filter(msg =>
+                msg.id.startsWith('temp-') &&
+                !formattedMessages.some(apiMsg => apiMsg.text === msg.text &&
+                    Math.abs(apiMsg.timestamp.getTime() - msg.timestamp.getTime()) < 60000)
+            );
+
+            const mergedMessages = [...formattedMessages, ...localOnlyMessages];
             // Sort by date_created ascending as requested
-            formattedMessages.sort((a, b) => a.timestamp.getTime() - b.timestamp.getTime());
-            setMessages(formattedMessages);
-            // Save to cache
-            setCachedMessages(phoneNumber, formattedMessages);
+            mergedMessages.sort((a, b) => a.timestamp.getTime() - b.timestamp.getTime());
+            setMessages(mergedMessages);
+            // Save merged result to cache
+            setCachedMessages(phoneNumber, mergedMessages);
         } catch (err) {
             setError(err instanceof Error ? err.message : "Failed to load history");
         } finally {
