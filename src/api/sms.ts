@@ -99,6 +99,7 @@ export const sendSms = async (
   };
 
   console.log("Sending SMS to new backend:", payload);
+    console.log("Sending to:", WEBHOOK_URL);
 
   try {
     const res = await fetch(WEBHOOK_URL, {
