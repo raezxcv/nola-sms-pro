@@ -48,7 +48,8 @@ export const addContact = async (params: AddContactParams): Promise<Contact | nu
     if (!res.ok) {
       const error = await res.json();
       console.error('Failed to add contact:', error);
-      return null;
+      // Return error details for display
+      throw new Error(error.details || error.error || 'Failed to add contact');
     }
     
     const contact = await res.json();
@@ -56,7 +57,7 @@ export const addContact = async (params: AddContactParams): Promise<Contact | nu
     return contact;
   } catch (error) {
     console.error('Failed to add contact:', error);
-    return null;
+    throw error;
   }
 };
 
@@ -80,7 +81,7 @@ export const updateContact = async (params: UpdateContactParams): Promise<Contac
     if (!res.ok) {
       const error = await res.json();
       console.error('Failed to update contact:', error);
-      return null;
+      throw new Error(error.details || error.error || 'Failed to update contact');
     }
     
     const contact = await res.json();
@@ -88,7 +89,7 @@ export const updateContact = async (params: UpdateContactParams): Promise<Contac
     return contact;
   } catch (error) {
     console.error('Failed to update contact:', error);
-    return null;
+    throw error;
   }
 };
 
@@ -101,13 +102,13 @@ export const deleteContact = async (id: string): Promise<boolean> => {
     if (!res.ok) {
       const error = await res.json();
       console.error('Failed to delete contact:', error);
-      return false;
+      throw new Error(error.details || error.error || 'Failed to delete contact');
     }
     
     console.log('Contact deleted:', id);
     return true;
   } catch (error) {
     console.error('Failed to delete contact:', error);
-    return false;
+    throw error;
   }
 };

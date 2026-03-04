@@ -83,12 +83,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       const firstName = nameParts[0];
       const lastName = nameParts.slice(1).join(' ') || '';
       
-      // Format phone number - remove all non-digits
+      // Format phone number - GHL requires E.164 format (+63 for Philippines)
       const phoneDigits = phone.replace(/\D/g, '');
+      const phoneE164 = phoneDigits.startsWith('63') ? '+' + phoneDigits : '+63' + phoneDigits.replace(/^0/, '');
       
-      const createUrl = `${GHL_API_URL}/contacts`;
+      const createUrl = `${GHL_API_URL}/contacts?locationId=${GHL_LOCATION_ID}`;
       
-      console.log('Creating contact in GHL:', { name, phone: phoneDigits });
+      console.log('Creating contact in GHL:', { name, phone: phoneE164, locationId: GHL_LOCATION_ID });
       
       const response = await fetch(createUrl, {
         method: 'POST',
@@ -100,7 +101,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         body: JSON.stringify({
           firstName,
           lastName,
-          phone: phoneDigits,
+          phone: phoneE164,
           email: email || '',
           locationId: GHL_LOCATION_ID
         })
@@ -137,12 +138,16 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       const firstName = nameParts[0] || '';
       const lastName = nameParts.slice(1).join(' ') || '';
       
-      // Format phone number - remove all non-digits
-      const phoneDigits = phone ? phone.replace(/\D/g, '') : '';
+      // Format phone number - GHL requires E.164 format
+      let phoneE164 = '';
+      if (phone) {
+        const phoneDigits = phone.replace(/\D/g, '');
+        phoneE164 = phoneDigits.startsWith('63') ? '+' + phoneDigits : '+63' + phoneDigits.replace(/^0/, '');
+      }
       
-      const updateUrl = `${GHL_API_URL}/contacts/${id}`;
+      const updateUrl = `${GHL_API_URL}/contacts/${id}?locationId=${GHL_LOCATION_ID}`;
       
-      console.log('Updating contact in GHL:', { id, name, phone: phoneDigits });
+      console.log('Updating contact in GHL:', { id, name, phone: phoneE164 });
       
       const response = await fetch(updateUrl, {
         method: 'PUT',
@@ -154,7 +159,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         body: JSON.stringify({
           firstName,
           lastName,
-          phone: phoneDigits,
+          phone: phoneE164,
           email: email || ''
         })
       });
@@ -185,7 +190,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         return res.status(400).json({ error: 'Contact ID is required' });
       }
       
-      const deleteUrl = `${GHL_API_URL}/contacts/${id}`;
+      const deleteUrl = `${GHL_API_URL}/contacts/${id}?locationId=${GHL_LOCATION_ID}`;
       
       console.log('Deleting contact from GHL:', id);
       

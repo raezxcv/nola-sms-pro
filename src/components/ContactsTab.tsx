@@ -113,12 +113,10 @@ export const ContactsTab: React.FC<ContactsTabProps> = ({ onSendToComposer, onVi
         setContacts((prev) => [...prev, newContact]);
         // Clear search to show the new contact
         setSearchQuery("");
-      } else {
-        setError("Failed to add contact to GHL");
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error("Error adding contact:", err);
-      setError("Failed to add contact");
+      setError(err.message || "Failed to add contact to GHL");
     } finally {
       setIsSubmitting(false);
       // Reset and close modal
@@ -155,9 +153,6 @@ export const ContactsTab: React.FC<ContactsTabProps> = ({ onSendToComposer, onVi
           setSelectedContacts((prev) => prev.map((c) => 
             c.id === editingContact.id ? { ...c, name: updated.name, phone: updated.phone } : c
           ));
-        } else {
-          setError("Failed to update contact in GHL");
-          return;
         }
       } else {
         // For manual contacts, just update locally
@@ -169,9 +164,9 @@ export const ContactsTab: React.FC<ContactsTabProps> = ({ onSendToComposer, onVi
           c.id === editingContact.id ? editingContact : c
         ));
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error("Error updating contact:", err);
-      setError("Failed to update contact");
+      setError(err.message || "Failed to update contact in GHL");
     } finally {
       setIsSubmitting(false);
       // Close modal
@@ -188,21 +183,16 @@ export const ContactsTab: React.FC<ContactsTabProps> = ({ onSendToComposer, onVi
     try {
       // Only delete from GHL if it's a GHL contact (has numeric ID, not starting with 'manual-')
       if (!contactId.startsWith('manual-')) {
-        const success = await deleteContact(contactId);
-        
-        if (!success) {
-          setError("Failed to delete contact from GHL");
-          return;
-        }
+        await deleteContact(contactId);
       }
       
       // Remove from contacts list
       setContacts((prev) => prev.filter((c) => c.id !== contactId));
       // Remove from selected if selected
       setSelectedContacts((prev) => prev.filter((c) => c.id !== contactId));
-    } catch (err) {
+    } catch (err: any) {
       console.error("Error deleting contact:", err);
-      setError("Failed to delete contact");
+      setError(err.message || "Failed to delete contact from GHL");
     } finally {
       setIsSubmitting(false);
     }
