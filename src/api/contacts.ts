@@ -28,3 +28,86 @@ export const fetchContacts = async (): Promise<Contact[]> => {
     return [];
   }
 };
+
+export interface AddContactParams {
+  name: string;
+  phone: string;
+  email?: string;
+}
+
+export const addContact = async (params: AddContactParams): Promise<Contact | null> => {
+  try {
+    const res = await fetch(CONTACTS_API_URL, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(params),
+    });
+    
+    if (!res.ok) {
+      const error = await res.json();
+      console.error('Failed to add contact:', error);
+      return null;
+    }
+    
+    const contact = await res.json();
+    console.log('Contact added:', contact);
+    return contact;
+  } catch (error) {
+    console.error('Failed to add contact:', error);
+    return null;
+  }
+};
+
+export interface UpdateContactParams {
+  id: string;
+  name: string;
+  phone: string;
+  email?: string;
+}
+
+export const updateContact = async (params: UpdateContactParams): Promise<Contact | null> => {
+  try {
+    const res = await fetch(CONTACTS_API_URL, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(params),
+    });
+    
+    if (!res.ok) {
+      const error = await res.json();
+      console.error('Failed to update contact:', error);
+      return null;
+    }
+    
+    const contact = await res.json();
+    console.log('Contact updated:', contact);
+    return contact;
+  } catch (error) {
+    console.error('Failed to update contact:', error);
+    return null;
+  }
+};
+
+export const deleteContact = async (id: string): Promise<boolean> => {
+  try {
+    const res = await fetch(`${CONTACTS_API_URL}?id=${encodeURIComponent(id)}`, {
+      method: 'DELETE',
+    });
+    
+    if (!res.ok) {
+      const error = await res.json();
+      console.error('Failed to delete contact:', error);
+      return false;
+    }
+    
+    console.log('Contact deleted:', id);
+    return true;
+  } catch (error) {
+    console.error('Failed to delete contact:', error);
+    return false;
+  }
+};

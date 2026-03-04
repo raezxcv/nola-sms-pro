@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo } from "react";
-import { fetchContacts } from "../api/contacts";
+import { fetchContacts, addContact, updateContact, deleteContact } from "../api/contacts";
 import type { Contact } from "../types/Contact";
-import { FiSearch, FiX, FiMail, FiCheck, FiUser, FiPlus, FiTrash2, FiMoreVertical, FiEdit2, FiMessageCircle } from "react-icons/fi";
+import { FiSearch, FiX, FiMail, FiCheck, FiUser, FiPlus, FiTrash2, FiMoreVertical, FiEdit2, FiMessageCircle, FiLoader } from "react-icons/fi";
 
 interface ContactsTabProps {
   onSendToComposer: (contacts: Contact[]) => void;
@@ -19,6 +19,8 @@ export const ContactsTab: React.FC<ContactsTabProps> = ({ onSendToComposer, onVi
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
   const [openMenuId, setOpenMenuId] = useState<string | null>(null);
   const [editingContact, setEditingContact] = useState<Contact | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     fetchContacts()
@@ -92,52 +94,118 @@ export const ContactsTab: React.FC<ContactsTabProps> = ({ onSendToComposer, onVi
     }
   };
 
-  const handleAddContact = () => {
+  const handleAddContact = async () => {
     const digits = newContactPhone.replace(/\D/g, "");
     if (!newContactName.trim() || digits.length < 7) return;
     
-    const newContact: Contact = {
-      id: `manual-${Date.now()}`,
-      name: newContactName.trim(),
-      phone: newContactPhone.trim(),
-    };
+    setIsSubmitting(true);
+    setError(null);
     
-    // Add to local contacts list (don't select automatically)
-    setContacts((prev) => [...prev, newContact]);
-    // Clear search to show the new contact
-    setSearchQuery("");
-    
-    // Reset and close modal
-    setNewContactName("");
-    setNewContactPhone("");
-    setIsAddModalOpen(false);
+    try {
+      // Add to GHL
+      const newContact = await addContact({
+        name: newContactName.trim(),
+        phone: "+63" + digits,
+      });
+      
+      if (newContact) {
+        // Add to local contacts list (don't select automatically)
+        setContacts((prev) => [...prev, newContact]);
+        // Clear search to show the new contact
+        setSearchQuery("");
+      } else {
+        setError("Failed to add contact to GHL");
+      }
+    } catch (err) {
+      console.error("Error adding contact:", err);
+      setError("Failed to add contact");
+    } finally {
+      setIsSubmitting(false);
+      // Reset and close modal
+      setNewContactName("");
+      setNewContactPhone("");
+      setIsAddModalOpen(false);
+    }
   };
 
-  const handleEditContact = () => {
+  const handleEditContact = async () => {
     if (!editingContact) return;
     const digits = editingContact.phone.replace(/\D/g, "");
     if (!editingContact.name.trim() || digits.length < 7) return;
     
-    // Update contact in list
-    setContacts((prev) => prev.map((c) => 
-      c.id === editingContact.id ? editingContact : c
-    ));
+    setIsSubmitting(true);
+    setError(null);
     
-    // Update selected contacts if this one was selected
-    setSelectedContacts((prev) => prev.map((c) => 
-      c.id === editingContact.id ? editingContact : c
-    ));
-    
-    // Close modal
-    setEditingContact(null);
+    try {
+      // Only update if it's a GHL contact (has numeric ID, not starting with 'manual-')
+      if (!editingContact.id.startsWith('manual-')) {
+        const updated = await updateContact({
+          id: editingContact.id,
+          name: editingContact.name.trim(),
+          phone: "+63" + digits,
+        });
+        
+        if (updated) {
+          // Update contact in list
+          setContacts((prev) => prev.map((c) => 
+            c.id === editingContact.id ? { ...editingContact, name: updated.name, phone: updated.phone } : c
+          ));
+          
+          // Update selected contacts if this one was selected
+          setSelectedContacts((prev) => prev.map((c) => 
+            c.id === editingContact.id ? { ...c, name: updated.name, phone: updated.phone } : c
+          ));
+        } else {
+          setError("Failed to update contact in GHL");
+          return;
+        }
+      } else {
+        // For manual contacts, just update locally
+        setContacts((prev) => prev.map((c) => 
+          c.id === editingContact.id ? editingContact : c
+        ));
+        
+        setSelectedContacts((prev) => prev.map((c) => 
+          c.id === editingContact.id ? editingContact : c
+        ));
+      }
+    } catch (err) {
+      console.error("Error updating contact:", err);
+      setError("Failed to update contact");
+    } finally {
+      setIsSubmitting(false);
+      // Close modal
+      setEditingContact(null);
+    }
   };
 
-  const handleDeleteContact = (contactId: string, e?: React.MouseEvent) => {
+  const handleDeleteContact = async (contactId: string, e?: React.MouseEvent) => {
     e?.stopPropagation();
-    // Remove from contacts list
-    setContacts((prev) => prev.filter((c) => c.id !== contactId));
-    // Remove from selected if selected
-    setSelectedContacts((prev) => prev.filter((c) => c.id !== contactId));
+    
+    setIsSubmitting(true);
+    setError(null);
+    
+    try {
+      // Only delete from GHL if it's a GHL contact (has numeric ID, not starting with 'manual-')
+      if (!contactId.startsWith('manual-')) {
+        const success = await deleteContact(contactId);
+        
+        if (!success) {
+          setError("Failed to delete contact from GHL");
+          return;
+        }
+      }
+      
+      // Remove from contacts list
+      setContacts((prev) => prev.filter((c) => c.id !== contactId));
+      // Remove from selected if selected
+      setSelectedContacts((prev) => prev.filter((c) => c.id !== contactId));
+    } catch (err) {
+      console.error("Error deleting contact:", err);
+      setError("Failed to delete contact");
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const isAllSelected = filteredContacts.length > 0 && selectedContacts.length === filteredContacts.length;
@@ -461,9 +529,20 @@ export const ContactsTab: React.FC<ContactsTabProps> = ({ onSendToComposer, onVi
                   handleDeleteContact(deleteConfirmId);
                   setDeleteConfirmId(null);
                 }}
-                className="w-full sm:flex-1 px-4 py-2.5 bg-red-500 hover:bg-red-600 text-white rounded-xl font-semibold text-[14px] transition-all duration-200"
+                disabled={isSubmitting}
+                className="w-full sm:flex-1 flex items-center justify-center gap-2 px-4 py-2.5 bg-red-500 hover:bg-red-600 disabled:bg-red-400 text-white rounded-xl font-semibold text-[14px] transition-all duration-200"
               >
-                Delete
+                {isSubmitting ? (
+                  <>
+                    <FiLoader className="h-4 w-4 animate-spin" />
+                    Deleting...
+                  </>
+                ) : (
+                  <>
+                    <FiTrash2 className="h-4 w-4" />
+                    Delete
+                  </>
+                )}
               </button>
             </div>
           </div>
@@ -494,6 +573,11 @@ export const ContactsTab: React.FC<ContactsTabProps> = ({ onSendToComposer, onVi
             </div>
             
             <div className="space-y-4">
+              {error && (
+                <div className="p-3 bg-red-50 dark:bg-red-500/10 border border-red-200 dark:border-red-500/20 rounded-xl">
+                  <p className="text-[13px] text-red-600 dark:text-red-400">{error}</p>
+                </div>
+              )}
               <div>
                 <label className="block text-[11px] sm:text-[12px] font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">
                   Name
@@ -549,11 +633,20 @@ export const ContactsTab: React.FC<ContactsTabProps> = ({ onSendToComposer, onVi
               </button>
               <button
                 onClick={handleAddContact}
-                disabled={!newContactName.trim() || newContactPhone.replace(/\D/g, "").length < 7}
+                disabled={!newContactName.trim() || newContactPhone.replace(/\D/g, "").length < 7 || isSubmitting}
                 className="w-full sm:flex-1 flex items-center justify-center gap-2 px-4 py-3 bg-[#2b83fa] hover:bg-[#1d6bd4] disabled:bg-gray-300 dark:disabled:bg-gray-600 disabled:cursor-not-allowed text-white disabled:text-gray-500 dark:disabled:text-gray-400 rounded-xl font-semibold text-[14px] transition-all duration-200"
               >
-                <FiPlus className="h-4 w-4" />
-                Add Contact
+                {isSubmitting ? (
+                  <>
+                    <FiLoader className="h-4 w-4 animate-spin" />
+                    Adding...
+                  </>
+                ) : (
+                  <>
+                    <FiPlus className="h-4 w-4" />
+                    Add Contact
+                  </>
+                )}
               </button>
             </div>
           </div>
@@ -584,6 +677,11 @@ export const ContactsTab: React.FC<ContactsTabProps> = ({ onSendToComposer, onVi
             </div>
             
             <div className="space-y-4">
+              {error && (
+                <div className="p-3 bg-red-50 dark:bg-red-500/10 border border-red-200 dark:border-red-500/20 rounded-xl">
+                  <p className="text-[13px] text-red-600 dark:text-red-400">{error}</p>
+                </div>
+              )}
               <div>
                 <label className="block text-[11px] sm:text-[12px] font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">
                   Name
@@ -641,11 +739,20 @@ export const ContactsTab: React.FC<ContactsTabProps> = ({ onSendToComposer, onVi
               </button>
               <button
                 onClick={handleEditContact}
-                disabled={!editingContact.name.trim() || editingContact.phone.replace(/\D/g, "").length < 7}
+                disabled={!editingContact.name.trim() || editingContact.phone.replace(/\D/g, "").length < 7 || isSubmitting}
                 className="w-full sm:flex-1 flex items-center justify-center gap-2 px-4 py-3 bg-[#2b83fa] hover:bg-[#1d6bd4] disabled:bg-gray-300 dark:disabled:bg-gray-600 disabled:cursor-not-allowed text-white disabled:text-gray-500 dark:disabled:text-gray-400 rounded-xl font-semibold text-[14px] transition-all duration-200"
               >
-                <FiCheck className="h-4 w-4" />
-                Save Changes
+                {isSubmitting ? (
+                  <>
+                    <FiLoader className="h-4 w-4 animate-spin" />
+                    Saving...
+                  </>
+                ) : (
+                  <>
+                    <FiCheck className="h-4 w-4" />
+                    Save Changes
+                  </>
+                )}
               </button>
             </div>
           </div>
