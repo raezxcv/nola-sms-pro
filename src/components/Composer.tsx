@@ -52,7 +52,7 @@ export const Composer: React.FC<ComposerProps> = ({
     return undefined;
   }, [activeContact, selectedContacts]);
 
-  const { messages, loading: historyLoading, addOptimisticMessage, updateMessageStatus } = useMessages(activePhoneNumber);
+  const { messages, loading: historyLoading, addOptimisticMessage, updateMessageStatus, refresh } = useMessages(activePhoneNumber);
 
   const dropdownRef = useRef<HTMLDivElement>(null);
 
@@ -245,6 +245,9 @@ export const Composer: React.FC<ComposerProps> = ({
           updateMessageStatus(tempId, 'sent');
           setToastSeverity("success");
           setToastMessage(smsResult.message || "Message sent successfully!");
+
+          // Re-fetch from database after a short delay to get the stored message
+          setTimeout(() => refresh(), 2000);
 
           // Navigate to contact view if not already there
           if (isNewMessage && onSelectContact && recipients[0]) {
