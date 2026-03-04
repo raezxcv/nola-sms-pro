@@ -38,13 +38,18 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         },
       });
 
-      let data = await response.json();
-      console.log('fetch_logs response:', data);
+      console.log('fetch_logs status:', response.status);
+      let data;
       
-      // If fetch_logs doesn't return valid data, fall back to messages
-      if (!data.data || data.data.length === 0) {
+      // Check if response is OK
+      if (response.ok) {
+        data = await response.json();
+        console.log('fetch_logs response:', data);
+      } else {
+        // Try webhook/messages instead
+        console.log('fetch_logs failed, trying webhook/messages');
         cloudRunUrl = `${CLOUD_RUN_URL}/webhook/messages?${queryParams.toString()}`;
-        console.log('Fallback to messages:', cloudRunUrl);
+        console.log('Trying messages:', cloudRunUrl);
         
         response = await fetch(cloudRunUrl, {
           method: 'GET',
@@ -54,7 +59,15 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           },
         });
         
-        data = await response.json();
+        console.log('messages status:', response.status);
+        
+        // Try to parse JSON, if not valid, return error
+        const text = await response.text();
+        try {
+          data = JSON.parse(text);
+        } catch {
+          data = { error: 'Cloud Run returned non-JSON', status: response.status, text };
+        }
         console.log('messages response:', data);
       }
       
