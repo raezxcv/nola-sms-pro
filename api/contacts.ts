@@ -17,22 +17,17 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   try {
     if (req.method === 'GET') {
-      // Use POST to /contacts/search with JSON body (GHL v2 API)
-      const searchUrl = `${GHL_API_URL}/contacts/search`;
+      // Use GET to /contacts with query params (simpler approach)
+      const contactsUrl = `${GHL_API_URL}/contacts?locationId=${GHL_LOCATION_ID}&limit=100`;
       
-      console.log('Calling GHL contacts/search with POST...');
-      const response = await fetch(searchUrl, {
-        method: 'POST',
+      console.log('Calling GHL contacts with GET...');
+      const response = await fetch(contactsUrl, {
+        method: 'GET',
         headers: {
           'Authorization': `Bearer ${GHL_API_TOKEN}`,
           'Content-Type': 'application/json',
-          'Version': '2024-12-01'
-        },
-        body: JSON.stringify({
-          locationId: GHL_LOCATION_ID,
-          limit: 100,
-          page: 1
-        })
+          'Version': '2021-07-28'
+        }
       });
 
       if (!response.ok) {
@@ -40,6 +35,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         console.error('GHL API Error:', response.status, errorText);
         return res.status(response.status).json({ 
           error: 'Failed to fetch contacts from GHL',
+          status: response.status,
           details: errorText 
         });
       }

@@ -16,22 +16,17 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   try {
     if (req.method === 'GET') {
-      // Try POST to /contacts/search with JSON body (GHL v2 API)
-      const searchUrl = `${GHL_API_URL}/contacts/search`;
+      // Use GET to /contacts with query params
+      const contactsUrl = `${GHL_API_URL}/contacts?locationId=${LOCATION_ID}&limit=100`;
       
-      console.log('Trying GHL contacts/search with POST...');
-      const response = await fetch(searchUrl, {
-        method: 'POST',
+      console.log('Calling GHL contacts with GET...');
+      const response = await fetch(contactsUrl, {
+        method: 'GET',
         headers: {
           'Authorization': `Bearer ${GHL_API_TOKEN}`,
           'Content-Type': 'application/json',
-          'Version': '2024-12-01'
-        },
-        body: JSON.stringify({
-          locationId: LOCATION_ID,
-          limit: 100,
-          page: 1
-        })
+          'Version': '2021-07-28'
+        }
       });
 
       if (!response.ok) {
