@@ -224,7 +224,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
       {/* Activity Feed Section */}
       <div className={`flex-1 min-h-0 flex flex-col mt-4 ${isCollapsed ? 'items-center' : ''}`}>
         {!isCollapsed && (
-          <div className="flex-1 overflow-y-auto custom-scrollbar px-2 pb-4">
+          <div className="flex-1 flex flex-col px-2 pb-4">
             {/* Messages Section Header - Sticky at top */}
             <div className="px-2 py-2 pt-4 border-t border-[#00000005] dark:border-[#ffffff05] sticky top-0 bg-white/70 dark:bg-[#121415]/80 backdrop-blur-xl z-10">
               <h2 className="text-[12px] font-bold text-[#5f6368] dark:text-[#9aa0a6] uppercase tracking-wider">Messages</h2>
@@ -244,8 +244,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
               <span className="text-[11px] font-medium text-[#5f6368] dark:text-[#9aa0a6] bg-[#f1f3f4] dark:bg-[#3c4043] px-1.5 py-0.5 rounded">{contacts.length}</span>
             </div>
 
-            {/* Direct Messages Content - Not scrollable, part of main scroll */}
-            <div className={`overflow-visible transition-all duration-300 ${directMessagesExpanded ? 'max-h-[500px] opacity-100 mb-2' : 'max-h-0 opacity-0'}`}>
+            {/* Direct Messages Content - Independent scrollable area */}
+            <div className={`overflow-y-auto custom-scrollbar transition-all duration-300 ${directMessagesExpanded ? 'max-h-[40vh] opacity-100 mb-2' : 'max-h-0 opacity-0'}`}>
               <div className="flex flex-col gap-0.5">
                 {contacts.map(contact => (
                   <div
@@ -364,8 +364,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 <span className="text-[11px] font-medium text-[#5f6368] dark:text-[#9aa0a6] bg-[#f1f3f4] dark:bg-[#3c4043] px-1.5 py-0.5 rounded">{bulkHistory.length}</span>
               </div>
 
-              {/* Bulk Messages Content - Not scrollable, part of main scroll */}
-              <div className={`overflow-visible transition-all duration-300 ${bulkMessagesExpanded ? 'max-h-[500px] opacity-100' : 'max-h-0 opacity-0'}`}>
+              {/* Bulk Messages Content - Independent scrollable area */}
+              <div className={`overflow-y-auto custom-scrollbar transition-all duration-300 ${bulkMessagesExpanded ? 'max-h-[40vh] opacity-100' : 'max-h-0 opacity-0'}`}>
                 <div className="flex flex-col gap-0.5">
                   {bulkHistory.length > 0 ? (
                     bulkHistory.map(item => (
