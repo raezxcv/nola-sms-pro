@@ -98,7 +98,7 @@ export const useGroupMessages = (recipientKey?: string, recipientNumbers?: strin
                 });
                 
                 // Transform to UI format: map message->text, date_created->timestamp, sender_id->senderName
-                // Wrap in try-catch to prevent crashes
+                // Include batch_id for campaign grouping
                 let transformedMessages: Message[] = [];
                 try {
                     transformedMessages = filtered
@@ -109,6 +109,10 @@ export const useGroupMessages = (recipientKey?: string, recipientNumbers?: strin
                             timestamp: new Date(parseDate(m.date_created)),
                             senderName: m.sender_id || 'NOLACRM',
                             status: (m.status || 'sent') as Message['status'],
+                            // Add these for compatibility with campaign view
+                            batch_id: m.batch_id,
+                            message: m.message,
+                            date_created: m.date_created,
                         }));
                 } catch (err) {
                     console.error('[useGroupMessages] Transformation error:', err);

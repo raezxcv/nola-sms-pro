@@ -3,7 +3,7 @@ import { Snackbar, Alert, Slide } from "@mui/material";
 import { sendSms, sendBulkSms, type SenderId } from "../api/sms";
 import { fetchContacts } from "../api/contacts";
 import { saveBulkMessage, getRecipientKey } from "../utils/storage";
-import type { BulkMessageHistoryItem } from "../types/Sms";
+import type { BulkMessageHistoryItem, Message } from "../types/Sms";
 import type { Contact } from "../types/Contact";
 import { FiUser, FiUsers, FiMenu } from "react-icons/fi";
 import ShinyText from "./ShinyText";
@@ -13,7 +13,6 @@ import { useGroupMessages } from "../hooks/useGroupMessages";
 import { SenderSelector } from "./SenderSelector";
 import { CreditBadge } from "./CreditBadge";
 import { FiCheck, FiAlertCircle, FiLoader } from "react-icons/fi";
-import type { SmsLog } from "../types/Sms";
 
 interface ComposerProps {
   selectedContacts: Contact[];
@@ -861,9 +860,9 @@ export const Composer: React.FC<ComposerProps> = ({
                 const isGroupView = (composeMode === 'bulk' && bulkSelectedContacts.length > 1) || activeBulkMessage;
 
                 if (isGroupView) {
-                  const campaigns: { [key: string]: SmsLog[] } = {};
-                  (messages as any[]).forEach(m => {
-                    const bid = m.batch_id || 'no-batch';
+                  const campaigns: { [key: string]: Message[] } = {};
+                  messages.forEach(m => {
+                    const bid = (m as any).batch_id || m.id?.toString().slice(0, 20) || 'no-batch';
                     if (!campaigns[bid]) campaigns[bid] = [];
                     campaigns[bid].push(m);
                   });
@@ -875,24 +874,22 @@ export const Composer: React.FC<ComposerProps> = ({
                     const prevBid = campaignEntries[index - 1];
                     const nextBid = campaignEntries[index + 1];
 
-                    const date = typeof firstMsg.date_created === 'string'
-                      ? new Date(firstMsg.date_created)
-                      : new Date((firstMsg.date_created as any)._seconds * 1000);
+                    const date = firstMsg.timestamp instanceof Date ? firstMsg.timestamp : new Date(firstMsg.timestamp);
 
                     const msgDateStr = date.toDateString();
                     const prevFirstMsg = prevBid ? campaigns[prevBid][0] : null;
-                    const prevDateStr = prevFirstMsg ? (typeof prevFirstMsg.date_created === 'string' ? new Date(prevFirstMsg.date_created).toDateString() : new Date((prevFirstMsg.date_created as any)._seconds * 1000).toDateString()) : null;
+                    const prevDateStr = prevFirstMsg ? (prevFirstMsg.timestamp instanceof Date ? prevFirstMsg.timestamp.toDateString() : new Date(prevFirstMsg.timestamp).toDateString()) : null;
                     const showDateSeparator = !prevDateStr || prevDateStr !== msgDateStr;
 
                     const campaignStats = {
-                      sent: campaignMsgs.filter(m => m.status.toLowerCase() === 'sent' || m.status.toLowerCase() === 'delivered').length,
-                      pending: campaignMsgs.filter(m => m.status.toLowerCase() === 'pending' || m.status.toLowerCase() === 'queued').length,
-                      failed: campaignMsgs.filter(m => ['failed', 'error'].includes(m.status.toLowerCase())).length,
+                      sent: campaignMsgs.filter(m => (m.status || '').toLowerCase() === 'sent' || (m.status || '').toLowerCase() === 'delivered').length,
+                      pending: campaignMsgs.filter(m => (m.status || '').toLowerCase() === 'pending' || (m.status || '').toLowerCase() === 'queued').length,
+                      failed: campaignMsgs.filter(m => ['failed', 'error'].includes((m.status || '').toLowerCase())).length,
                       total: campaignMsgs.length
                     };
 
                     const isExpanded = expandedMessageId === bid;
-                    const isNextSameDay = nextBid && (typeof campaigns[nextBid][0].date_created === 'string' ? new Date(campaigns[nextBid][0].date_created).toDateString() : new Date((campaigns[nextBid][0].date_created as any)._seconds * 1000).toDateString()) === msgDateStr;
+                    const isNextSameDay = nextBid && (campaigns[nextBid][0].timestamp instanceof Date ? campaigns[nextBid][0].timestamp.toDateString() : new Date(campaigns[nextBid][0].timestamp).toDateString()) === msgDateStr;
 
                     let roundingClasses = "rounded-[20px]";
                     if (!showDateSeparator && isNextSameDay) {
@@ -919,7 +916,7 @@ export const Composer: React.FC<ComposerProps> = ({
                         >
                           <div className={`bg-gradient-to-r from-[#2b83fa] to-[#1d6bd4] text-white px-4 py-2.5 shadow-lg shadow-blue-500/10 transition-transform group-hover:scale-[1.01] ${roundingClasses}`}>
                             <div className="text-[14.5px] whitespace-pre-wrap leading-relaxed">
-                              {firstMsg.message}
+                              {firstMsg.text || firstMsg.message}
                             </div>
                           </div>
 
@@ -927,7 +924,7 @@ export const Composer: React.FC<ComposerProps> = ({
                             <div className="flex flex-col items-end gap-1">
                               <div className="flex items-center gap-2">
                                 <span className="text-[10px] font-semibold text-gray-500 dark:text-gray-400">
-                                  {firstMsg.sender_id || (firstMsg as any).senderName}
+                                  {firstMsg.senderName || firstMsg.sender_id || 'NOLACRM'}
                                 </span>
                                 <span className="text-[10px] text-gray-400">•</span>
                                 <span className="text-[10px] text-gray-500 dark:text-gray-400 font-medium">

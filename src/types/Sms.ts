@@ -37,4 +37,8 @@ export interface Message {
   timestamp: Date;
   senderName: string;
   status: 'sending' | 'sent' | 'delivered' | 'failed';
+  // Extra fields for compatibility
+  batch_id?: string;
+  message?: string;
+  date_created?: string | { _seconds: number; _nanoseconds: number };
 }
