@@ -13,6 +13,7 @@ export interface BulkMessageHistoryItem {
   customName?: string;
   timestamp: string;
   status: 'sent' | 'partial' | 'failed';
+  batchId?: string;
 }
 
 export interface SmsLog {
@@ -24,6 +25,7 @@ export interface SmsLog {
   date_created: string | { _seconds: number; _nanoseconds: number };
   source?: string;
   direction?: 'inbound' | 'outbound';
+  batch_id?: string;
 }
 
 export interface Message {

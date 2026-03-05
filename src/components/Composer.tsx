@@ -5,28 +5,34 @@ import { fetchContacts } from "../api/contacts";
 import { saveBulkMessage } from "../utils/storage";
 import type { BulkMessageHistoryItem } from "../types/Sms";
 import type { Contact } from "../types/Contact";
-import { FiUser, FiUsers } from "react-icons/fi";
+import { FiUser, FiUsers, FiMenu } from "react-icons/fi";
 import ShinyText from "./ShinyText";
 import { DotLottieReact } from "@lottiefiles/dotlottie-react";
 import { useMessages } from "../hooks/useMessages";
 import { SenderSelector } from "./SenderSelector";
+import { BulkChatView } from "./BulkChatView";
+import { CreditBadge } from "./CreditBadge";
 
 interface ComposerProps {
   selectedContacts: Contact[];
   isNewMessage?: boolean;
   activeContact?: Contact | null;
+  activeBulkMessage?: BulkMessageHistoryItem | null;
   onSelectContact?: (contact: Contact) => void;
   onSelectBulkMessage?: (item: BulkMessageHistoryItem) => void;
   onRequestSettings?: () => void;
+  onToggleMobileMenu?: () => void;
 }
 
 export const Composer: React.FC<ComposerProps> = ({
   selectedContacts,
   isNewMessage = true,
   activeContact,
+  activeBulkMessage,
   onSelectContact,
   onSelectBulkMessage,
-  onRequestSettings
+  onRequestSettings,
+  onToggleMobileMenu
 }) => {
   const [message, setMessage] = useState("");
   const [loading, setLoading] = useState(false);
@@ -249,6 +255,9 @@ export const Composer: React.FC<ComposerProps> = ({
           setToastSeverity("success");
           setToastMessage(smsResult.message || "Message sent successfully!");
 
+          // Dispatch event to refresh credit balance
+          window.dispatchEvent(new Event('sms-sent'));
+
           // Re-fetch from database after a short delay to get the stored message
           setTimeout(() => refresh(), 2000);
 
@@ -264,7 +273,7 @@ export const Composer: React.FC<ComposerProps> = ({
       } else {
         // Bulk SMS sending
         const phones = recipients.map(c => c.phone);
-        const results = await sendBulkSms(phones, messageText, senderName);
+        const { results, batchId } = await sendBulkSms(phones, messageText, senderName);
         const successCount = results.filter(r => r.success).length;
 
         // Save to bulk message history
@@ -274,7 +283,8 @@ export const Composer: React.FC<ComposerProps> = ({
           recipientCount: recipients.length,
           recipientNames: recipients.map(r => r.name),
           timestamp: new Date().toISOString(),
-          status: successCount === recipients.length ? 'sent' : successCount > 0 ? 'partial' : 'failed'
+          status: successCount === recipients.length ? 'sent' : successCount > 0 ? 'partial' : 'failed',
+          batchId: batchId
         };
         saveBulkMessage(bulkItem);
         window.dispatchEvent(new Event('bulk-message-sent'));
@@ -337,6 +347,10 @@ export const Composer: React.FC<ComposerProps> = ({
     return "";
   };
 
+  if (activeBulkMessage) {
+    return <BulkChatView bulkItem={activeBulkMessage} />;
+  }
+
   return (
     <div className="flex flex-col h-full bg-[#f9fafb] dark:bg-[#111111] relative overflow-hidden transition-colors duration-300">
       {/* 1. Header & Recipient Area (Sticky) */}
@@ -344,7 +358,14 @@ export const Composer: React.FC<ComposerProps> = ({
         {activePhoneNumber ? (
           /* Chat Header for specific contact */
           <div className="max-w-5xl mx-auto px-4 sm:px-6 py-3 sm:py-4 flex flex-row items-center justify-between gap-3">
-            <div className="flex items-center gap-3 sm:gap-4 min-w-0 flex-1">
+            <div className="flex items-center gap-2 sm:gap-4 min-w-0 flex-1">
+              <button
+                onClick={onToggleMobileMenu}
+                className="md:hidden p-2 rounded-lg text-gray-400 hover:text-gray-600 dark:hover:text-[#ececf1] transition-colors"
+                aria-label="Toggle sidebar"
+              >
+                <FiMenu className="h-5 w-5" />
+              </button>
               <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-gradient-to-br from-[#2b83fa] to-[#60a5fa] flex-shrink-0 flex items-center justify-center text-white font-bold text-base sm:text-lg shadow-md shadow-blue-500/10">
                 {(activeContact?.name || selectedContacts[0]?.name || "?").charAt(0).toUpperCase()}
               </div>
@@ -359,19 +380,29 @@ export const Composer: React.FC<ComposerProps> = ({
             </div>
 
             {/* Consistently styled Sender Selection */}
-            <div className="flex-shrink-0">
-              <SenderSelector
-                value={senderName}
-                onChange={setSenderName}
-                onRequestSettings={onRequestSettings}
-              />
+            <div className="flex items-center gap-3">
+              <CreditBadge />
+              <div className="flex-shrink-0">
+                <SenderSelector
+                  value={senderName}
+                  onChange={setSenderName}
+                  onRequestSettings={onRequestSettings}
+                />
+              </div>
             </div>
           </div>
         ) : (
           /* New Message / Bulk Header */
           <div className="max-w-5xl mx-auto px-4 sm:px-6 pt-4 pb-2">
             <div className="flex flex-row items-center justify-between mb-4 gap-3">
-              <div className="flex items-center gap-2.5">
+              <div className="flex items-center gap-1.5">
+                <button
+                  onClick={onToggleMobileMenu}
+                  className="md:hidden p-2 rounded-lg text-gray-400 hover:text-gray-600 dark:hover:text-[#ececf1] transition-colors"
+                  aria-label="Toggle sidebar"
+                >
+                  <FiMenu className="h-5 w-5" />
+                </button>
                 <div className="w-8 h-8 rounded-lg bg-[#2b83fa] flex items-center justify-center text-white shadow-lg shadow-blue-500/20">
                   <svg xmlns="http://www.w3.org/2000/svg" className="h-[18px] w-[18px]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.2}>
                     <path strokeLinecap="round" strokeLinejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0115.75 21H5.25A2.25 2.25 0 013 18.75V8.25A2.25 2.25 0 015.25 6H10" />
@@ -405,6 +436,7 @@ export const Composer: React.FC<ComposerProps> = ({
                     Bulk
                   </button>
                 </div>
+                <CreditBadge />
               </div>
             </div>
 

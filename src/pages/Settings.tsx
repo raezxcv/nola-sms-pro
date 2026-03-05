@@ -1,7 +1,7 @@
 import { useState, useCallback, useEffect } from "react";
 import {
-    FiUser, FiSend, FiMoon, FiCode, FiBell, FiCreditCard,
-    FiSave, FiPlus, FiTrash2, FiCopy, FiCheck, FiSun,
+    FiUser, FiSend, FiCode, FiBell, FiCreditCard,
+    FiSave, FiPlus, FiTrash2, FiCopy, FiCheck,
     FiGlobe, FiMapPin, FiBriefcase, FiCheckCircle, FiAlertCircle, FiClock,
     FiX, FiEye, FiEyeOff, FiRefreshCw, FiZap,
 } from "react-icons/fi";
@@ -15,7 +15,7 @@ import {
 } from "../utils/settingsStorage";
 
 // ─── Types ──────────────────────────────────────────────────────────────────
-type SettingsTab = "account" | "senderIds" | "appearance" | "api" | "notifications" | "credits";
+type SettingsTab = "account" | "senderIds" | "api" | "notifications" | "credits";
 
 interface SettingsProps {
     darkMode: boolean;
@@ -28,7 +28,6 @@ interface SettingsProps {
 const TABS: { id: SettingsTab; label: string; icon: React.ReactNode; description: string }[] = [
     { id: "account", label: "Account", icon: <FiUser />, description: "Profile & organization info" },
     { id: "senderIds", label: "Sender IDs", icon: <FiSend />, description: "Manage approved sender IDs" },
-    { id: "appearance", label: "Appearance", icon: <FiMoon />, description: "Theme & display options" },
     { id: "api", label: "API & Webhooks", icon: <FiCode />, description: "Integration endpoints & keys" },
     { id: "notifications", label: "Notifications", icon: <FiBell />, description: "Alert & report preferences" },
     { id: "credits", label: "Credits", icon: <FiCreditCard />, description: "Balance & billing" },
@@ -211,7 +210,9 @@ const SenderIdsSection: React.FC<{ autoOpenAddModal?: boolean }> = ({ autoOpenAd
     const [customIds, setCustomIds] = useState<StoredSenderId[]>(getStoredSenderIds);
     const [isAdding, setIsAdding] = useState(false);
     const [newId, setNewId] = useState("");
-    const [newDesc, setNewDesc] = useState("");
+    const [newPurpose, setNewPurpose] = useState("");
+    const [newSample, setNewSample] = useState("");
+    const [isSubmitted, setIsSubmitted] = useState(false);
 
     // Auto-open modal when triggered from Composer
     useEffect(() => {
@@ -225,12 +226,21 @@ const SenderIdsSection: React.FC<{ autoOpenAddModal?: boolean }> = ({ autoOpenAd
     const handleAdd = (e: React.FormEvent) => {
         e.preventDefault();
         if (!newId.trim()) return;
+
+        const fullDesc = `Purpose: ${newPurpose} | Sample: ${newSample}`;
         const colorIdx = customIds.length % SENDER_COLORS.length;
-        const created = addSenderId(newId, newDesc, SENDER_COLORS[colorIdx]);
+        const created = addSenderId(newId, fullDesc, SENDER_COLORS[colorIdx]);
+
         setCustomIds(prev => [...prev, created]);
-        setNewId("");
-        setNewDesc("");
-        setIsAdding(false);
+        setIsSubmitted(true);
+
+        setTimeout(() => {
+            setNewId("");
+            setNewPurpose("");
+            setNewSample("");
+            setIsSubmitted(false);
+            setIsAdding(false);
+        }, 3000);
     };
 
     const handleDelete = (id: string) => {
@@ -296,42 +306,68 @@ const SenderIdsSection: React.FC<{ autoOpenAddModal?: boolean }> = ({ autoOpenAd
                                 <div className="w-8 h-8 rounded-lg bg-[#2b83fa]/10 flex items-center justify-center text-[#2b83fa]">
                                     <FiPlus />
                                 </div>
-                                <h3 className="text-[17px] font-bold text-[#111111] dark:text-[#ececf1]">Request Sender ID</h3>
+                                <h3 className="text-[17px] font-bold text-[#111111] dark:text-[#ececf1]">Add a Sender Name</h3>
                             </div>
                             <button onClick={() => setIsAdding(false)} className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-white/5 text-gray-500 transition-colors">
                                 <FiX />
                             </button>
                         </div>
-                        <form onSubmit={handleAdd} className="space-y-4">
-                            <div>
-                                <label className="block text-[12px] font-semibold text-[#5f6368] dark:text-[#9aa0a6] uppercase tracking-wider mb-1.5">Sender ID</label>
-                                <input
-                                    autoFocus
-                                    value={newId}
-                                    onChange={e => setNewId(e.target.value.toUpperCase())}
-                                    placeholder="e.g. MYBRAND"
-                                    maxLength={11}
-                                    required
-                                    className="w-full px-4 py-2.5 rounded-xl text-[14px] font-bold border bg-[#f7f7f7] dark:bg-[#0d0e10] border-[#e0e0e0] dark:border-[#ffffff0a] text-[#111111] dark:text-[#ececf1] placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#2b83fa]/25"
-                                />
-                                <p className="text-[11px] text-[#9aa0a6] mt-1">Max 11 characters. Will be submitted for approval.</p>
+                        {isSubmitted ? (
+                            <div className="py-8 flex flex-col items-center text-center animate-in fade-in zoom-in-95">
+                                <div className="w-16 h-16 rounded-full bg-emerald-500/10 flex items-center justify-center text-emerald-500 mb-4">
+                                    <FiCheck className="w-8 h-8" />
+                                </div>
+                                <h4 className="text-[18px] font-bold text-[#111111] dark:text-[#ececf1] mb-2">Request Submitted</h4>
+                                <p className="text-[14px] text-[#6e6e73] dark:text-[#94959b] max-w-xs">
+                                    Your sender name has been submitted and will be processed within 5 business days. For the requested Sender Names, credits will only be deducted upon approval.
+                                </p>
                             </div>
-                            <div>
-                                <label className="block text-[12px] font-semibold text-[#5f6368] dark:text-[#9aa0a6] uppercase tracking-wider mb-1.5">Description (optional)</label>
-                                <input
-                                    value={newDesc}
-                                    onChange={e => setNewDesc(e.target.value)}
-                                    placeholder="e.g. Marketing campaigns"
-                                    className="w-full px-4 py-2.5 rounded-xl text-[14px] border bg-[#f7f7f7] dark:bg-[#0d0e10] border-[#e0e0e0] dark:border-[#ffffff0a] text-[#111111] dark:text-[#ececf1] placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#2b83fa]/25"
-                                />
-                            </div>
-                            <div className="flex flex-col-reverse sm:flex-row gap-3 pt-2">
-                                <button type="button" onClick={() => setIsAdding(false)} className="flex-1 py-2.5 text-[13px] font-semibold text-gray-500 hover:bg-gray-100 dark:hover:bg-white/5 rounded-xl transition-colors">Cancel</button>
-                                <button type="submit" className="flex-1 flex items-center justify-center gap-2 py-2.5 bg-gradient-to-r from-[#2b83fa] to-[#1d6bd4] hover:shadow-[0_8px_25px_rgba(43,131,250,0.4)] text-white rounded-xl font-semibold text-[13px] transition-all shadow-md shadow-blue-500/20">
-                                    <FiPlus className="w-4 h-4" /> Submit Request
-                                </button>
-                            </div>
-                        </form>
+                        ) : (
+                            <form onSubmit={handleAdd} className="space-y-4">
+                                <div>
+                                    <label className="block text-[12px] font-semibold text-[#5f6368] dark:text-[#9aa0a6] uppercase tracking-wider mb-1.5">Sender Name</label>
+                                    <input
+                                        autoFocus
+                                        value={newId}
+                                        onChange={e => setNewId(e.target.value.toUpperCase())}
+                                        placeholder="ex. NOLACRM"
+                                        maxLength={11}
+                                        required
+                                        className="w-full px-4 py-2.5 rounded-xl text-[14px] font-bold border bg-[#f7f7f7] dark:bg-[#0d0e10] border-[#e0e0e0] dark:border-[#ffffff0a] text-[#111111] dark:text-[#ececf1] placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#2b83fa]/25"
+                                    />
+                                    <p className="text-[11px] text-[#9aa0a6] mt-1">Max 11 characters. Alphanumeric only.</p>
+                                </div>
+                                <div>
+                                    <label className="block text-[12px] font-semibold text-[#5f6368] dark:text-[#9aa0a6] uppercase tracking-wider mb-1.5">Purpose</label>
+                                    <textarea
+                                        value={newPurpose}
+                                        onChange={e => setNewPurpose(e.target.value)}
+                                        placeholder="What will you be using the sender name for?"
+                                        required
+                                        rows={3}
+                                        className="w-full px-4 py-2.5 rounded-xl text-[14px] border bg-[#f7f7f7] dark:bg-[#0d0e10] border-[#e0e0e0] dark:border-[#ffffff0a] text-[#111111] dark:text-[#ececf1] placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#2b83fa]/25 resize-none"
+                                    />
+                                    <p className="text-[11px] text-[#9aa0a6] mt-1">If your Sender Name does not clearly reflect your business name or brand it will not be approved. Please be specific.</p>
+                                </div>
+                                <div>
+                                    <label className="block text-[12px] font-semibold text-[#5f6368] dark:text-[#9aa0a6] uppercase tracking-wider mb-1.5">Sample Message</label>
+                                    <textarea
+                                        value={newSample}
+                                        onChange={e => setNewSample(e.target.value)}
+                                        placeholder="Please provide a specific example that accurately reflects the type of messages you will send."
+                                        required
+                                        rows={3}
+                                        className="w-full px-4 py-2.5 rounded-xl text-[14px] border bg-[#f7f7f7] dark:bg-[#0d0e10] border-[#e0e0e0] dark:border-[#ffffff0a] text-[#111111] dark:text-[#ececf1] placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#2b83fa]/25 resize-none"
+                                    />
+                                </div>
+                                <div className="flex flex-col-reverse sm:flex-row gap-3 pt-2">
+                                    <button type="button" onClick={() => setIsAdding(false)} className="flex-1 py-2.5 text-[13px] font-semibold text-gray-500 hover:bg-gray-100 dark:hover:bg-white/5 rounded-xl transition-colors">Cancel</button>
+                                    <button type="submit" className="flex-1 flex items-center justify-center gap-2 py-2.5 bg-gradient-to-r from-[#2b83fa] to-[#1d6bd4] hover:shadow-[0_8px_25px_rgba(43,131,250,0.4)] text-white rounded-xl font-semibold text-[13px] transition-all shadow-md shadow-blue-500/20">
+                                        Submit Request
+                                    </button>
+                                </div>
+                            </form>
+                        )}
                     </div>
                 </div>
             )}
@@ -346,73 +382,7 @@ const SenderIdsSection: React.FC<{ autoOpenAddModal?: boolean }> = ({ autoOpenAd
     );
 };
 
-// ─── Section: Appearance ────────────────────────────────────────────────────
-const AppearanceSection: React.FC<{ darkMode: boolean; toggleDarkMode: () => void }> = ({ darkMode, toggleDarkMode }) => {
-    const [accentColor, setAccentColor] = useState(localStorage.getItem("nola_accent") || "#2b83fa");
-    const ACCENTS = ["#2b83fa", "#7c3aed", "#10b981", "#f59e0b", "#ef4444", "#ec4899", "#06b6d4"];
 
-    const handleAccent = (color: string) => {
-        setAccentColor(color);
-        localStorage.setItem("nola_accent", color);
-    };
-
-    return (
-        <div className="space-y-5">
-            <SectionHeader title="Appearance" subtitle="Customize how NOLA SMS Pro looks for you." />
-
-            <Card>
-                <h3 className="text-[13px] font-bold text-[#37352f] dark:text-[#ececf1] mb-4 uppercase tracking-wider">Theme</h3>
-                <div className="flex items-center justify-between py-1">
-                    <div className="flex items-center gap-3">
-                        <div className={`w-10 h-10 rounded-xl flex items-center justify-center transition-colors ${darkMode ? "bg-[#2b83fa]/10 text-[#2b83fa]" : "bg-amber-50 text-amber-500"}`}>
-                            {darkMode ? <FiMoon className="w-5 h-5" /> : <FiSun className="w-5 h-5" />}
-                        </div>
-                        <div>
-                            <p className="text-[14px] font-semibold text-[#111111] dark:text-[#ececf1]">{darkMode ? "Dark Mode" : "Light Mode"}</p>
-                            <p className="text-[12px] text-[#9aa0a6]">{darkMode ? "Easy on the eyes at night" : "Bright and clear interface"}</p>
-                        </div>
-                    </div>
-                    <Toggle checked={darkMode} onChange={toggleDarkMode} id="themeToggle" />
-                </div>
-
-                <div className="mt-5 grid grid-cols-2 gap-3">
-                    {[
-                        { label: "Light", icon: <FiSun className="w-5 h-5" />, active: !darkMode, action: () => darkMode && toggleDarkMode() },
-                        { label: "Dark", icon: <FiMoon className="w-5 h-5" />, active: darkMode, action: () => !darkMode && toggleDarkMode() },
-                    ].map(opt => (
-                        <button
-                            key={opt.label}
-                            onClick={opt.action}
-                            className={`flex flex-col items-center gap-2 py-4 rounded-xl border-2 transition-all ${opt.active
-                                ? "border-[#2b83fa] bg-[#2b83fa]/5 dark:bg-[#2b83fa]/10 text-[#2b83fa]"
-                                : "border-[#e0e0e0] dark:border-[#2a2b32] text-[#6e6e73] dark:text-[#94959b] hover:border-[#2b83fa]/40"
-                                }`}
-                        >
-                            {opt.icon}
-                            <span className="text-[12px] font-semibold">{opt.label}</span>
-                            {opt.active && <FiCheck className="w-3 h-3" />}
-                        </button>
-                    ))}
-                </div>
-            </Card>
-
-            <Card>
-                <h3 className="text-[13px] font-bold text-[#37352f] dark:text-[#ececf1] mb-4 uppercase tracking-wider">Accent Color</h3>
-                <div className="flex items-center gap-3 flex-wrap">
-                    {ACCENTS.map(color => (
-                        <button
-                            key={color}
-                            onClick={() => handleAccent(color)}
-                            style={{ backgroundColor: color, ...(accentColor === color ? { outline: `2px solid ${color}`, outlineOffset: '2px' } : {}) } as React.CSSProperties}
-                            className={`w-9 h-9 rounded-xl transition-all hover:scale-110 ${accentColor === color ? "scale-110" : ""}`}
-                        />
-                    ))}
-                </div>
-                <p className="text-[11px] text-[#9aa0a6] mt-3">Accent color preference is saved locally and may not apply to all UI elements in this version.</p>
-            </Card>
-        </div>
-    );
-};
 
 // ─── Section: API & Webhooks ────────────────────────────────────────────────
 const APISection: React.FC = () => {
@@ -667,35 +637,35 @@ const CreditsSection: React.FC = () => {
 
             <Card>
                 <h3 className="text-[13px] font-bold text-[#37352f] dark:text-[#ececf1] uppercase tracking-wider mb-4">Top Up Credits</h3>
-                
+
                 <form onSubmit={handleTopUp} className="space-y-4">
-                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-                            {PACKAGES.map(pkg => (
-                                <button
-                                    key={pkg.credits}
-                                    type="button"
-                                    onClick={() => setTopUpAmount(pkg.credits)}
-                                    className={`flex flex-col items-center py-3 rounded-xl border-2 transition-all ${topUpAmount === pkg.credits
-                                        ? "border-[#2b83fa] bg-[#2b83fa]/5 dark:bg-[#2b83fa]/10"
-                                        : "border-[#e0e0e0] dark:border-[#2a2b32] hover:border-[#2b83fa]/40"
-                                        }`}
-                                >
-                                    <span className={`text-[16px] font-black ${topUpAmount === pkg.credits ? "text-[#2b83fa]" : "text-[#111111] dark:text-[#ececf1]"}`}>{pkg.credits.toLocaleString()}</span>
-                                    <span className="text-[11px] text-[#9aa0a6]">cr</span>
-                                    <span className={`text-[12px] font-bold mt-1 ${topUpAmount === pkg.credits ? "text-[#2b83fa]" : "text-[#6e6e73] dark:text-[#94959b]"}`}>₱{pkg.price}</span>
-                                </button>
-                            ))}
-                        </div>
-                        {submitted ? (
-                            <div className="flex items-center justify-center gap-2 py-3 bg-emerald-50 dark:bg-emerald-900/20 rounded-xl text-emerald-600 dark:text-emerald-400 font-semibold text-[13px]">
-                                <FiCheck className="w-4 h-4" /> Top-up request submitted! Admin will review shortly.
-                            </div>
-                        ) : (
-                            <button type="submit" className="w-full flex items-center justify-center gap-2 py-3 bg-gradient-to-r from-[#2b83fa] to-[#1d6bd4] hover:shadow-[0_8px_25px_rgba(43,131,250,0.4)] text-white rounded-xl font-semibold text-[14px] transition-all shadow-md shadow-blue-500/20">
-                                <FiZap className="w-4 h-4" /> Request {topUpAmount.toLocaleString()} Credits
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                        {PACKAGES.map(pkg => (
+                            <button
+                                key={pkg.credits}
+                                type="button"
+                                onClick={() => setTopUpAmount(pkg.credits)}
+                                className={`flex flex-col items-center py-3 rounded-xl border-2 transition-all ${topUpAmount === pkg.credits
+                                    ? "border-[#2b83fa] bg-[#2b83fa]/5 dark:bg-[#2b83fa]/10"
+                                    : "border-[#e0e0e0] dark:border-[#2a2b32] hover:border-[#2b83fa]/40"
+                                    }`}
+                            >
+                                <span className={`text-[16px] font-black ${topUpAmount === pkg.credits ? "text-[#2b83fa]" : "text-[#111111] dark:text-[#ececf1]"}`}>{pkg.credits.toLocaleString()}</span>
+                                <span className="text-[11px] text-[#9aa0a6]">cr</span>
+                                <span className={`text-[12px] font-bold mt-1 ${topUpAmount === pkg.credits ? "text-[#2b83fa]" : "text-[#6e6e73] dark:text-[#94959b]"}`}>₱{pkg.price}</span>
                             </button>
-                        )}
-                    </form>
+                        ))}
+                    </div>
+                    {submitted ? (
+                        <div className="flex items-center justify-center gap-2 py-3 bg-emerald-50 dark:bg-emerald-900/20 rounded-xl text-emerald-600 dark:text-emerald-400 font-semibold text-[13px]">
+                            <FiCheck className="w-4 h-4" /> Top-up request submitted! Admin will review shortly.
+                        </div>
+                    ) : (
+                        <button type="submit" className="w-full flex items-center justify-center gap-2 py-3 bg-gradient-to-r from-[#2b83fa] to-[#1d6bd4] hover:shadow-[0_8px_25px_rgba(43,131,250,0.4)] text-white rounded-xl font-semibold text-[14px] transition-all shadow-md shadow-blue-500/20">
+                            <FiZap className="w-4 h-4" /> Request {topUpAmount.toLocaleString()} Credits
+                        </button>
+                    )}
+                </form>
             </Card>
 
             <Card>
@@ -729,7 +699,6 @@ export const Settings: React.FC<SettingsProps> = ({ darkMode, toggleDarkMode, in
         switch (activeTab) {
             case "account": return <AccountSection />;
             case "senderIds": return <SenderIdsSection autoOpenAddModal={autoOpenAddModal && activeTab === "senderIds"} />;
-            case "appearance": return <AppearanceSection darkMode={darkMode} toggleDarkMode={toggleDarkMode} />;
             case "api": return <APISection />;
             case "notifications": return <NotificationsSection />;
             case "credits": return <CreditsSection />;
@@ -779,8 +748,8 @@ export const Settings: React.FC<SettingsProps> = ({ darkMode, toggleDarkMode, in
                                         <div className="hidden md:block absolute left-0 top-1/2 -translate-y-1/2 w-1 h-5 bg-[#2b83fa] rounded-r-full shadow-[0_0_8px_rgba(43,131,250,0.5)]" />
                                     )}
                                     <span className={`text-[15px] flex-shrink-0 transition-all duration-300 ${isActive
-                                            ? "scale-110 text-[#2b83fa] drop-shadow-[0_0_8px_rgba(43,131,250,0.4)]"
-                                            : "group-hover:scale-105 group-hover:text-[#2b83fa]"
+                                        ? "scale-110 text-[#2b83fa] drop-shadow-[0_0_8px_rgba(43,131,250,0.4)]"
+                                        : "group-hover:scale-105 group-hover:text-[#2b83fa]"
                                         }`}>{tab.icon}</span>
                                     <span className={`text-[13.5px] ${isActive ? "font-bold tracking-tight" : "font-medium"}`}>{tab.label}</span>
                                 </button>

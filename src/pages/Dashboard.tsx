@@ -23,6 +23,12 @@ export const Dashboard: React.FC<DashboardProps> = ({ isMobileMenuOpen: external
       return saved ? JSON.parse(saved) : null;
     } catch { return null; }
   });
+  const [activeBulkMessage, setActiveBulkMessage] = useState<BulkMessageHistoryItem | null>(() => {
+    try {
+      const saved = localStorage.getItem('nola_active_bulk_message');
+      return saved ? JSON.parse(saved) : null;
+    } catch { return null; }
+  });
   const [selectedContacts, setSelectedContacts] = useState<Contact[]>(() => {
     try {
       const saved = localStorage.getItem('nola_active_contact');
@@ -41,7 +47,9 @@ export const Dashboard: React.FC<DashboardProps> = ({ isMobileMenuOpen: external
   const handleSelectContact = (contact: Contact) => {
     setSelectedContacts([contact]);
     setActiveContact(contact);
+    setActiveBulkMessage(null);
     localStorage.setItem('nola_active_contact', JSON.stringify(contact));
+    localStorage.removeItem('nola_active_bulk_message');
     setCurrentView('compose');
     localStorage.setItem('nola_active_tab', 'compose');
   };
@@ -50,8 +58,11 @@ export const Dashboard: React.FC<DashboardProps> = ({ isMobileMenuOpen: external
     console.log('Selected bulk message:', bulkMessage);
     setSelectedContacts([]);
     setActiveContact(null);
+    setActiveBulkMessage(bulkMessage);
     localStorage.removeItem('nola_active_contact');
+    localStorage.setItem('nola_active_bulk_message', JSON.stringify(bulkMessage));
     setCurrentView('compose');
+    localStorage.setItem('nola_active_tab', 'compose');
   };
 
   const handleSendToComposer = (contacts: Contact[]) => {
@@ -81,7 +92,9 @@ export const Dashboard: React.FC<DashboardProps> = ({ isMobileMenuOpen: external
     if (tab === 'compose') {
       setSelectedContacts([]);
       setActiveContact(null);
+      setActiveBulkMessage(null);
       localStorage.removeItem('nola_active_contact');
+      localStorage.removeItem('nola_active_bulk_message');
     }
     // On mobile, close sidebar when selecting a main action area
     if (window.innerWidth < 768 && tab !== 'compose' && onMobileMenuToggle) {
@@ -170,11 +183,11 @@ export const Dashboard: React.FC<DashboardProps> = ({ isMobileMenuOpen: external
           {currentView === 'compose' ? (
             <Composer
               selectedContacts={selectedContacts}
-              isNewMessage={currentView === 'compose'}
               activeContact={activeContact}
+              activeBulkMessage={activeBulkMessage}
               onSelectContact={handleSelectContact}
               onSelectBulkMessage={handleSelectBulkMessage}
-              onRequestSettings={() => setSettingsOpen(true)}
+              onToggleMobileMenu={toggleMobileMenu}
             />
           ) : currentView === 'contacts' ? (
             <ContactsTab

@@ -72,7 +72,7 @@ export const clearBulkMessageHistory = (): void => {
 export const renameBulkMessage = (id: string, newName: string): void => {
   try {
     const existing = getBulkMessageHistory();
-    const updated = existing.map(item => 
+    const updated = existing.map(item =>
       item.id === id ? { ...item, customName: newName } : item
     );
     localStorage.setItem(BULK_HISTORY_KEY, JSON.stringify(updated));
@@ -139,7 +139,7 @@ export const setCachedMessages = (phoneNumber: string, messages: Message[]): voi
 export const updateMessageInCache = (phoneNumber: string, tempId: string, status: Message['status'], realId?: string): void => {
   const cache = getMessagesCache();
   if (!cache[phoneNumber]) return;
-  
+
   cache[phoneNumber] = cache[phoneNumber].map(msg =>
     msg.id === tempId ? { ...msg, status, id: realId || msg.id } : msg
   );

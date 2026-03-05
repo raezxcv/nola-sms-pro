@@ -94,7 +94,8 @@ export const fetchSmsLogs = async (phoneNumber: string): Promise<SmsLog[]> => {
 export const sendSms = async (
   phoneNumber: string,
   message: string,
-  senderName: string = "NOLACRM"
+  senderName: string = "NOLACRM",
+  batchId?: string
 ): Promise<SendSmsResponse> => {
   if (!phoneNumber || !message) {
     return {
@@ -117,6 +118,7 @@ export const sendSms = async (
       number: formattedNumber,
       message: message,
       sendername: senderName,
+      batch_id: batchId,
     },
   };
 
@@ -165,13 +167,32 @@ export const sendBulkSms = async (
   phoneNumbers: string[],
   message: string,
   senderName: string = "NOLACRM"
-): Promise<SendSmsResponse[]> => {
+): Promise<{ results: SendSmsResponse[], batchId: string }> => {
   const results: SendSmsResponse[] = [];
+  const batchId = `batch-${Date.now()}`;
 
   for (const phone of phoneNumbers) {
-    const result = await sendSms(phone, message, senderName);
+    const result = await sendSms(phone, message, senderName, batchId);
     results.push(result);
   }
 
-  return results;
+  return { results, batchId };
+};
+
+export const fetchBatchMessages = async (batchId: string): Promise<SmsLog[]> => {
+  if (!batchId) return [];
+
+  try {
+    const res = await fetch(`${WEBHOOK_URL}?batch_id=${batchId}&limit=500`, {
+      headers: {
+        'X-Webhook-Secret': WEBHOOK_SECRET,
+      },
+    });
+    if (!res.ok) throw new Error("Failed to fetch batch messages");
+    const data = await res.json();
+    return data.data || [];
+  } catch (error) {
+    console.error("Fetch Batch Error:", error);
+    return [];
+  }
 };
