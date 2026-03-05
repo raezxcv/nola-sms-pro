@@ -72,20 +72,28 @@ export const useGroupMessages = (recipientKey?: string, recipientNumbers?: strin
                 }
                 
                 // Filter to only recipients in this specific bulk message
-                // Normalize both the recipientNumbers and stored message numbers for comparison
+                // AND only messages that were sent as part of this bulk message (have the same batch_id)
                 let filtered = batchData;
                 if (recipientNumbers && recipientNumbers.length > 0) {
+                    // Normalize the recipient numbers from bulk message
                     const normalizedRecipients = recipientNumbers
                         .map(n => normalizePHNumber(n))
                         .filter((n): n is string => n !== null);
                     console.log('[useGroupMessages] Normalized recipients:', normalizedRecipients);
                     
+                    // Filter: must match recipient numbers AND have the same batch_id
                     filtered = batchData.filter(m => {
+                        // Check if message has batch_id matching current batch
+                        const hasMatchingBatch = m.batch_id === batchId;
+                        
+                        // Check if message recipient matches our numbers
                         const messageNumbers = m.numbers || [];
                         const normalizedMessageNumbers = messageNumbers
                             .map(n => normalizePHNumber(n))
                             .filter((n): n is string => n !== null);
-                        return normalizedMessageNumbers.some(num => normalizedRecipients.includes(num));
+                        const hasMatchingRecipient = normalizedMessageNumbers.some(num => normalizedRecipients.includes(num));
+                        
+                        return hasMatchingBatch && hasMatchingRecipient;
                     });
                     console.log('[useGroupMessages] After filtering:', filtered.length, 'messages');
                 }
@@ -159,19 +167,26 @@ export const useGroupMessages = (recipientKey?: string, recipientNumbers?: strin
             let flattened = allBatchData.flat();
 
             // 4. Filter to only recipients in this group!
-            // This is key: "i just want selected contacts not all"
-            // Normalize both for consistent comparison
+            // AND only messages that were sent as part of bulk messages (have batch_id)
             if (recipientNumbers && recipientNumbers.length > 0) {
                 const normalizedRecipients = recipientNumbers
                     .map(n => normalizePHNumber(n))
                     .filter((n): n is string => n !== null);
                 
+                // Get the batch_ids from the group history
+                const groupBatchIds = batchIds;
+                
                 flattened = flattened.filter(m => {
+                    // Must have a batch_id that's in our group
+                    const hasMatchingBatch = m.batch_id && groupBatchIds.includes(m.batch_id);
+                    
                     const messageNumbers = m.numbers || [];
                     const normalizedMessageNumbers = messageNumbers
                         .map(n => normalizePHNumber(n))
                         .filter((n): n is string => n !== null);
-                    return normalizedMessageNumbers.some(num => normalizedRecipients.includes(num));
+                    const hasMatchingRecipient = normalizedMessageNumbers.some(num => normalizedRecipients.includes(num));
+                    
+                    return hasMatchingBatch && hasMatchingRecipient;
                 });
             }
 
