@@ -88,7 +88,7 @@ export const useGroupMessages = (recipientKey?: string, recipientNumbers?: strin
                 }
                 
                 // Sort by date (chronological)
-                filtered.sort((a, b) => {
+                filtered = [...filtered].sort((a, b) => {
                     const dateA = a?.date_created ? parseDate(a.date_created) : Date.now();
                     const dateB = b?.date_created ? parseDate(b.date_created) : Date.now();
                     return dateA - dateB;

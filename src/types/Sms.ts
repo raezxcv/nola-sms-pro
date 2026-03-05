@@ -16,6 +16,7 @@ export interface BulkMessageHistoryItem {
   timestamp: string;
   status: 'sent' | 'partial' | 'failed';
   batchId?: string;
+  fromDatabase?: boolean;
 }
 
 export interface SmsLog {

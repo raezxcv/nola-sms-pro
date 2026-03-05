@@ -1,4 +1,4 @@
-import type { SmsLog } from "../types/Sms";
+import type { SmsLog, BulkMessageHistoryItem } from "../types/Sms";
 
 const WEBHOOK_URL = "/api/messages";
 const WEBHOOK_SECRET = "f7RkQ2pL9zV3tX8cB1nS4yW6";
@@ -202,6 +202,34 @@ export const fetchBatchMessages = async (batchId: string): Promise<SmsLog[]> => 
     return data.data || [];
   } catch (error) {
     console.error("Fetch Batch Error:", error);
+    return [];
+  }
+};
+
+// Fetch all bulk messages from Firestore (grouped by batch)
+export const fetchAllBulkMessages = async (): Promise<BulkMessageHistoryItem[]> => {
+  try {
+    const res = await fetch(`${WEBHOOK_URL}?action=fetch_bulk_messages`, {
+      headers: {
+        'X-Webhook-Secret': WEBHOOK_SECRET,
+      },
+    });
+    if (!res.ok) throw new Error("Failed to fetch bulk messages");
+    const data = await res.json();
+    // Convert to BulkMessageHistoryItem format
+    return data.map((item: any) => ({
+      id: `bulk-db-${item.batch_id}`,
+      message: item.message || '',
+      recipientCount: item.recipientCount || 0,
+      recipientNumbers: item.recipientNumbers || [],
+      recipientKey: item.batch_id,
+      timestamp: item.timestamp || new Date().toISOString(),
+      status: 'sent' as const,
+      batchId: item.batch_id,
+      fromDatabase: true,
+    }));
+  } catch (error) {
+    console.error("Fetch All Bulk Messages Error:", error);
     return [];
   }
 };

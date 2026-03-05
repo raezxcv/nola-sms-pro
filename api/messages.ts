@@ -16,6 +16,26 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   try {
+    // Route based on action parameter
+    const action = req.query.action as string;
+    
+    if (action === 'fetch_bulk_messages') {
+      // Fetch all bulk messages from Firestore
+      const cloudRunUrl = `${CLOUD_RUN_URL}/webhook/fetch_bulk_messages`;
+      console.log('Proxying fetch_bulk_messages to:', cloudRunUrl);
+      
+      const response = await fetch(cloudRunUrl, {
+        method: 'GET',
+        headers: {
+          'X-Webhook-Secret': WEBHOOK_SECRET,
+          'Content-Type': 'application/json',
+        },
+      });
+
+      const data = await response.json();
+      return res.status(response.status).json(data);
+    }
+    
     // Route based on method
     if (req.method === 'GET') {
       // GET /api/messages - fetch messages

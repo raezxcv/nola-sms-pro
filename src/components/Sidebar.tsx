@@ -1,5 +1,6 @@
 import { useEffect, useState, useCallback, useRef } from "react";
 import { fetchContacts } from "../api/contacts";
+import { fetchAllBulkMessages } from "../api/sms";
 import type { Contact } from "../types/Contact";
 import type { BulkMessageHistoryItem } from "../types/Sms";
 import { getBulkMessageHistory, renameBulkMessage, deleteBulkMessage, deleteContact, getDeletedContactIds } from "../utils/storage";
@@ -48,6 +49,38 @@ export const Sidebar: React.FC<SidebarProps> = ({
       const deletedIds = getDeletedContactIds();
       const filtered = data.filter(c => !deletedIds.includes(c.id));
       setContacts(filtered);
+      
+      // Also load bulk messages from database
+      try {
+        const dbBulkMessages = await fetchAllBulkMessages();
+        const localBulkMessages = getBulkMessageHistory();
+        
+        // Merge: prefer database messages (they have accurate batch info)
+        // Use a map to combine by batch_id
+        const mergedBulk = new Map();
+        
+        // Add local messages first
+        localBulkMessages.forEach(msg => {
+          const key = msg.batchId || msg.id;
+          mergedBulk.set(key, msg);
+        });
+        
+        // Override with database messages (they're more accurate)
+        dbBulkMessages.forEach(msg => {
+          const key = msg.batchId || msg.id;
+          mergedBulk.set(key, msg);
+        });
+        
+        // Convert to array and sort by timestamp
+        const combined = Array.from(mergedBulk.values())
+          .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+        
+        setBulkHistory(combined);
+      } catch (bulkErr) {
+        console.error('Error loading bulk messages from DB:', bulkErr);
+        // Fall back to local
+        setBulkHistory(getBulkMessageHistory());
+      }
     } catch (e) {
       console.error(e);
     } finally {
