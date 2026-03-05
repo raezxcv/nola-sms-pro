@@ -470,61 +470,224 @@ export const Composer: React.FC<ComposerProps> = ({
             </div>
           </div>
         ) : (
-          /* Bulk Message Header - Similar to individual contact but with multi-recipient info */
-          <div className="max-w-5xl mx-auto px-4 sm:px-6 py-3 sm:py-4 flex flex-row items-center justify-between gap-3">
-            <div className="flex items-center gap-2 sm:gap-4 min-w-0 flex-1">
-              <button
-                onClick={onToggleMobileMenu}
-                className="md:hidden p-2 rounded-lg text-gray-400 hover:text-gray-600 dark:hover:text-[#ececf1] transition-colors"
-                aria-label="Toggle sidebar"
-              >
-                <FiMenu className="h-5 w-5" />
-              </button>
-              
-              {/* Circular Avatar - matches individual contact style */}
-              <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-gradient-to-br from-[#7c3aed] to-[#a78bfa] flex-shrink-0 flex items-center justify-center text-white font-bold text-base sm:text-lg shadow-md shadow-purple-500/20">
-                <FiUsers className="h-5 w-5 sm:h-6 sm:w-6" />
-              </div>
-              
-              {/* Recipient Name(s) - similar to individual contact header */}
-              <div className="flex flex-col min-w-0">
-                <h2 className="text-[15px] sm:text-[17px] font-bold text-[#111111] dark:text-[#ececf1] leading-tight tracking-tight truncate">
-                  {activeBulkMessage ? (
-                    activeBulkMessage.customName || 
-                    (activeBulkMessage.recipientNames && activeBulkMessage.recipientNames.length > 0 
-                      ? activeBulkMessage.recipientNames.slice(0, 2).join(', ') + (activeBulkMessage.recipientNames.length > 2 ? ` +${activeBulkMessage.recipientNames.length - 2}` : '')
-                      : `${activeBulkMessage.recipientCount} recipients`)
-                  ) : (
-                    composeMode === 'bulk' && bulkSelectedContacts.length > 0 ? (
-                      (() => {
-                        const count = bulkSelectedContacts.length;
-                        if (count === 1) return toProperCase(bulkSelectedContacts[0].name);
-                        if (count === 2) return `${toProperCase(bulkSelectedContacts[0].name)}, ${toProperCase(bulkSelectedContacts[1].name)}`;
-                        return `${toProperCase(bulkSelectedContacts[0].name)}, ${toProperCase(bulkSelectedContacts[1].name)} +${count - 2} more`;
-                      })()
+          /* New Message / Bulk Header - Styled like individual contact header */
+          <div className="max-w-5xl mx-auto px-4 sm:px-6 pt-3 pb-2">
+            <div className="flex flex-row items-center justify-between mb-3 gap-3">
+              <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1">
+                <button
+                  onClick={onToggleMobileMenu}
+                  className="md:hidden p-2 rounded-lg text-gray-400 hover:text-gray-600 dark:hover:text-[#ececf1] transition-colors"
+                  aria-label="Toggle sidebar"
+                >
+                  <FiMenu className="h-5 w-5" />
+                </button>
+
+                {/* Circular Avatar - matches individual contact style */}
+                <div className="w-10 h-10 sm:w-11 sm:h-11 rounded-full bg-gradient-to-br from-[#7c3aed] to-[#a78bfa] flex-shrink-0 flex items-center justify-center text-white font-bold text-base shadow-md shadow-purple-500/20">
+                  <FiUsers className="h-5 w-5" />
+                </div>
+
+                <div className="flex flex-col min-w-0">
+                  <h2 className="text-[15px] sm:text-[16px] font-bold text-[#111111] dark:text-[#ececf1] leading-tight tracking-tight truncate">
+                    {activeBulkMessage ? (
+                      activeBulkMessage.customName || 
+                      (activeBulkMessage.recipientNames && activeBulkMessage.recipientNames.length > 0 
+                        ? activeBulkMessage.recipientNames.slice(0, 2).join(', ') + (activeBulkMessage.recipientNames.length > 2 ? ` +${activeBulkMessage.recipientNames.length - 2}` : '')
+                        : `${activeBulkMessage.recipientCount} recipients`)
                     ) : (
-                      "New Broadcast"
-                    )
-                  )}
-                </h2>
-                <span className="text-[12px] sm:text-[13px] text-gray-500 dark:text-gray-400 font-medium truncate">
-                  {activeBulkMessage 
-                    ? `${activeBulkMessage.recipientCount} recipient${activeBulkMessage.recipientCount !== 1 ? 's' : ''}`
-                    : (bulkSelectedContacts.length > 0 ? `${bulkSelectedContacts.length} selected` : 'Select recipients')
-                  }
-                </span>
+                      composeMode === 'bulk' && bulkSelectedContacts.length > 0 ? (
+                        (() => {
+                          const count = bulkSelectedContacts.length;
+                          if (count === 1) return `To: ${toProperCase(bulkSelectedContacts[0].name)}`;
+                          if (count === 2) return `To: ${toProperCase(bulkSelectedContacts[0].name)}, ${toProperCase(bulkSelectedContacts[1].name)}`;
+                          return `To: ${toProperCase(bulkSelectedContacts[0].name)}, ${toProperCase(bulkSelectedContacts[1].name)} +${count - 2} more`;
+                        })()
+                      ) : (
+                        "New Message"
+                      )
+                    )}
+                  </h2>
+                  <span className="text-[12px] sm:text-[13px] text-gray-500 dark:text-gray-400 font-medium truncate">
+                    {activeBulkMessage 
+                      ? `${activeBulkMessage.recipientCount} recipient${activeBulkMessage.recipientCount !== 1 ? 's' : ''}`
+                      : (bulkSelectedContacts.length > 0 ? `${bulkSelectedContacts.length} selected` : 'Select recipients')
+                    }
+                  </span>
+                </div>
+              </div>
+
+              <div className="flex items-center justify-end gap-2 sm:gap-3 flex-wrap">
+                <div className="order-1 hidden sm:block">
+                  <CreditBadge />
+                </div>
+
+                {/* Compact Toggle - restored for new message flow */}
+                <div className="flex p-0.5 bg-gray-100 dark:bg-white/5 rounded-xl border border-gray-200/50 dark:border-white/5 order-2">
+                  <button
+                    onClick={() => setComposeMode("single")}
+                    className={`flex-1 flex items-center justify-center gap-1.5 px-3 py-1.5 sm:py-1 text-[10px] sm:text-[11px] font-bold uppercase tracking-wider rounded-lg transition-all duration-200 ${composeMode === "single"
+                      ? "bg-white dark:bg-[#2a2b32] text-[#2b83fa] shadow-sm shadow-blue-500/10"
+                      : "text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+                      }`}
+                  >
+                    <FiUser className="h-3 w-3 sm:h-3.5 sm:w-3.5" />
+                    Single
+                  </button>
+                  <button
+                    onClick={() => setComposeMode("bulk")}
+                    className={`flex-1 flex items-center justify-center gap-1.5 px-3 py-1.5 sm:py-1 text-[10px] sm:text-[11px] font-bold uppercase tracking-wider rounded-lg transition-all duration-200 ${composeMode === "bulk"
+                      ? "bg-white dark:bg-[#2a2b32] text-[#2b83fa] shadow-sm shadow-blue-500/10"
+                      : "text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+                      }`}
+                  >
+                    <FiUsers className="h-3 w-3 sm:h-3.5 sm:w-3.5" />
+                    Bulk
+                  </button>
+                </div>
               </div>
             </div>
 
-            {/* Consistently styled Sender Selection */}
-            <div className="flex items-center gap-2 group">
-              <div className="flex-shrink-0 order-2 sm:order-1">
-                <CreditBadge />
+            {/* Sender Selector - Full Width Above To: on Mobile */}
+            <div className="mb-3 w-full block sm:hidden">
+              <div className="flex items-center justify-between gap-3">
+                <div className="flex items-center gap-3">
+                  <span className="text-[14px] font-semibold text-gray-400 dark:text-gray-500 whitespace-nowrap">From:</span>
+                  <div className="flex-1">
+                    <SenderSelector
+                      value={senderName}
+                      onChange={setSenderName}
+                      align="left"
+                      onRequestSettings={onRequestSettings}
+                    />
+                  </div>
+                </div>
+                <div className="flex-shrink-0 scale-90 origin-right">
+                  <CreditBadge />
+                </div>
               </div>
-              <div className="flex-shrink-0 order-1 sm:order-2">
+            </div>
+
+            {/* Recipient Line */}
+            <div className="flex items-start gap-3 pb-2 border-t border-gray-100 dark:border-white/5 pt-3">
+              <span className="text-[14px] font-semibold text-gray-400 dark:text-gray-500 mt-2.5 whitespace-nowrap">To:</span>
+
+              <div className="flex-1 min-h-[44px]">
+                <div className="relative" ref={dropdownRef}>
+                  <div
+                    className="flex flex-wrap gap-2 py-1.5 cursor-text"
+                    onClick={() => setIsPickerOpen(true)}
+                  >
+                    {bulkSelectedContacts.map(contact => (
+                      <span
+                        key={contact.id}
+                        className="flex items-center gap-1.5 bg-[#2b83fa]/10 dark:bg-[#2b83fa]/20 border border-[#2b83fa]/20 px-2.5 py-1 rounded-full text-[13px] text-[#2b83fa] font-semibold"
+                      >
+                        {toProperCase(contact.name)}
+                        <button
+                          onClick={(e) => handleRemoveBulkContact(contact.id, e)}
+                          className="hover:text-red-500 transition-colors"
+                        >
+                          <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" viewBox="0 0 20 20" fill="currentColor">
+                            <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
+                          </svg>
+                        </button>
+                      </span>
+                    ))}
+                    <input
+                      type="text"
+                      value={searchQuery}
+                      onChange={(e) => {
+                        setSearchQuery(e.target.value);
+                        setIsPickerOpen(true);
+                      }}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' && searchQuery) {
+                          e.preventDefault();
+                          handleManualAdd();
+                        }
+                      }}
+                      onFocus={() => setIsPickerOpen(true)}
+                      placeholder={bulkSelectedContacts.length === 0 ? (composeMode === "single" ? "Search or enter number..." : "Search or enter multiple...") : ""}
+                      className="flex-1 bg-transparent border-none min-w-[120px] text-[15px] font-medium text-[#111111] dark:text-[#ececf1] placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none py-1"
+                    />
+                  </div>
+
+                  {/* Dropdown */}
+                  {isPickerOpen && (
+                    <div className="absolute top-full left-0 right-0 z-40 max-h-64 overflow-y-auto rounded-2xl border border-gray-200/80 dark:border-white/10 bg-white/95 dark:bg-[#1a1b1e]/95 backdrop-blur-2xl shadow-2xl mt-1 py-2 custom-scrollbar transition-all scale-up-center">
+                      {/* Manual Add Option */}
+                      {searchQuery.replace(/\D/g, "").length >= 7 && (
+                        <div
+                          onClick={handleManualAdd}
+                          className="mx-2 mb-2 p-3 rounded-xl bg-[#2b83fa]/5 border border-[#2b83fa]/20 flex items-center gap-3 cursor-pointer hover:bg-[#2b83fa]/10 transition-all group"
+                        >
+                          <div className="w-8 h-8 rounded-full bg-[#2b83fa] flex items-center justify-center text-white shadow-sm group-hover:scale-110 transition-transform">
+                            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                              <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
+                            </svg>
+                          </div>
+                          <div className="flex-1">
+                            <p className="text-[13px] font-bold text-[#2b83fa]">Add manual number</p>
+                            <p className="text-[11px] text-[#2b83fa]/70 font-medium">"{searchQuery}"</p>
+                          </div>
+                          <span className="text-[10px] font-black text-[#2b83fa]/40 tracking-widest uppercase">Enter</span>
+                        </div>
+                      )}
+
+                      {filteredContacts.length === 0 && searchQuery.replace(/\D/g, "").length < 7 ? (
+                        <div className="px-4 py-8 text-center">
+                          <p className="text-[13px] text-gray-500 font-medium">No results found</p>
+                        </div>
+                      ) : (
+                        <div className="flex flex-col gap-0.5 px-2">
+                          {filteredContacts.map(contact => {
+                            const isSelected = bulkSelectedContacts.some(c => c.id === contact.id);
+                            return (
+                              <div
+                                key={contact.id}
+                                onClick={() => isSelected ? handleRemoveBulkContact(contact.id) : handleSelectBulkContact(contact)}
+                                className={`px-3 py-2.5 rounded-xl flex items-center justify-between cursor-pointer transition-all duration-150 ${isSelected
+                                  ? "bg-[#2b83fa]/5 dark:bg-[#2b83fa]/10"
+                                  : "hover:bg-gray-100/50 dark:hover:bg-white/5"
+                                  }`}
+                              >
+                                <div className="flex items-center gap-3 min-w-0">
+                                  <div className={`w-8 h-8 rounded-full flex items-center justify-center text-[11px] font-bold ${isSelected ? "bg-[#2b83fa] text-white" : "bg-gray-200 dark:bg-white/10 text-gray-600 dark:text-gray-400"}`}>
+                                    {(() => {
+                                      const parts = contact.name.split(' ').filter(p => p.length > 0);
+                                      const first = parts[0]?.charAt(0) || '';
+                                      const last = parts.length > 1 ? parts[parts.length - 1]?.charAt(0) || '' : '';
+                                      return (first + last).toUpperCase() || '?';
+                                    })()}
+                                  </div>
+                                  <div className="min-w-0">
+                                    <p className="font-semibold text-[13px] text-[#111111] dark:text-[#ececf1] truncate">{toProperCase(contact.name)}</p>
+                                    <p className="text-[11px] text-gray-500 truncate">{contact.phone}</p>
+                                  </div>
+                                </div>
+                                {isSelected && (
+                                  <div className="w-5 h-5 rounded-full bg-[#2b83fa] flex items-center justify-center">
+                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3 text-white" viewBox="0 0 20 20" fill="currentColor">
+                                      <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                                    </svg>
+                                  </div>
+                                )}
+                              </div>
+                            );
+                          })}
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Sender Selector — right of To: row (Desktop only) */}
+              <div className="flex-shrink-0 mt-1 hidden sm:block">
                 <SenderSelector
                   value={senderName}
                   onChange={setSenderName}
+                  size="sm"
                   onRequestSettings={onRequestSettings}
                 />
               </div>
