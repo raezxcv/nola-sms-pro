@@ -53,6 +53,7 @@ export const useGroupMessages = (recipientKey?: string, recipientNumbers?: strin
     const [messages, setMessages] = useState<Message[]>([]);
     const [loading, setLoading] = useState(false);
     const initialLoadDone = useRef(false);
+    const dataLoaded = useRef(false);
 
     const refresh = useCallback(async (showLoading = false) => {
         // If we have a specific batchId, only fetch that batch
@@ -91,22 +92,32 @@ export const useGroupMessages = (recipientKey?: string, recipientNumbers?: strin
                 
                 // Sort by date (chronological)
                 filtered.sort((a, b) => {
-                    const dateA = parseDate(a.date_created);
-                    const dateB = parseDate(b.date_created);
+                    const dateA = a?.date_created ? parseDate(a.date_created) : Date.now();
+                    const dateB = b?.date_created ? parseDate(b.date_created) : Date.now();
                     return dateA - dateB;
                 });
                 
                 // Transform to UI format: map message->text, date_created->timestamp, sender_id->senderName
-                const transformedMessages: Message[] = filtered.map(m => ({
-                    id: m.message_id,
-                    text: m.message || '',
-                    timestamp: new Date(parseDate(m.date_created)),
-                    senderName: m.sender_id || 'NOLACRM',
-                    status: (m.status || 'sent') as Message['status'],
-                }));
+                // Wrap in try-catch to prevent crashes
+                let transformedMessages: Message[] = [];
+                try {
+                    transformedMessages = filtered
+                        .filter(m => m && m.message_id && m.message)
+                        .map(m => ({
+                            id: m.message_id,
+                            text: m.message || '',
+                            timestamp: new Date(parseDate(m.date_created)),
+                            senderName: m.sender_id || 'NOLACRM',
+                            status: (m.status || 'sent') as Message['status'],
+                        }));
+                } catch (err) {
+                    console.error('[useGroupMessages] Transformation error:', err);
+                }
                 
                 setMessages(transformedMessages);
+                dataLoaded.current = true;
                 console.log('[useGroupMessages] Final messages set:', transformedMessages.length);
+                console.log('[useGroupMessages] Sample transformed message:', transformedMessages[0]);
             } catch (error) {
                 console.error("Failed to fetch batch messages:", error);
             } finally {
