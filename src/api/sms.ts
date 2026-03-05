@@ -209,13 +209,15 @@ export const fetchBatchMessages = async (batchId: string): Promise<SmsLog[]> => 
 // Fetch all bulk messages from Firestore (grouped by batch)
 export const fetchAllBulkMessages = async (): Promise<BulkMessageHistoryItem[]> => {
   try {
-    const res = await fetch('/api/fetch_bulk_messages', {
-      headers: {
-        'X-Webhook-Secret': WEBHOOK_SECRET,
-      },
-    });
-    if (!res.ok) throw new Error("Failed to fetch bulk messages");
+    const res = await fetch('/api/fetch_bulk_messages');
+    console.log('[fetchAllBulkMessages] Response status:', res.status);
+    if (!res.ok) {
+      const errorText = await res.text();
+      console.error('[fetchAllBulkMessages] Error response:', errorText);
+      throw new Error(`Failed to fetch bulk messages: ${res.status}`);
+    }
     const data = await res.json();
+    console.log('[fetchAllBulkMessages] Data received:', data);
     // Convert to BulkMessageHistoryItem format
     return data.map((item: any) => ({
       id: `bulk-db-${item.batch_id}`,
@@ -229,7 +231,7 @@ export const fetchAllBulkMessages = async (): Promise<BulkMessageHistoryItem[]> 
       fromDatabase: true,
     }));
   } catch (error) {
-    console.error("Fetch All Bulk Messages Error:", error);
+    console.error("[fetchAllBulkMessages] Error:", error);
     return [];
   }
 };
