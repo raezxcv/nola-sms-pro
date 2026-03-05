@@ -127,6 +127,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ isMobileMenuOpen: external
             onTabChange={handleTabChange}
             onSelectContact={handleSelectContact}
             activeContactId={activeContact?.id}
+            activeBulkMessageId={activeBulkMessage?.id}
             isCollapsed={isSidebarCollapsed}
             onToggleCollapse={toggleCollapse}
             onSelectBulkMessage={handleSelectBulkMessage}

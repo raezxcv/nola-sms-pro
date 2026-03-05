@@ -13,6 +13,7 @@ interface SidebarProps {
   onTabChange: (tab: ViewTab) => void;
   onSelectContact: (contact: Contact) => void;
   activeContactId?: string;
+  activeBulkMessageId?: string;
   isCollapsed?: boolean;
   onToggleCollapse?: () => void;
   onSelectBulkMessage?: (message: BulkMessageHistoryItem) => void;
@@ -23,6 +24,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   onTabChange,
   onSelectContact,
   activeContactId,
+  activeBulkMessageId,
   isCollapsed = false,
   onToggleCollapse,
   onSelectBulkMessage
@@ -417,7 +419,10 @@ export const Sidebar: React.FC<SidebarProps> = ({
                         className={`
                           group relative transition-all duration-200 rounded-lg mx-1
                           px-2 py-2 cursor-pointer overflow-visible
-                          hover:bg-[#f1f3f4] dark:hover:bg-[#303134]
+                          ${activeBulkMessageId === item.id
+                            ? 'bg-white dark:bg-[#1c1e21] shadow-[0_4px_15px_rgba(0,0,0,0.05)] dark:shadow-[0_10px_30px_rgba(0,0,0,0.3)] ring-1 ring-[#00000005] dark:ring-[#ffffff05]'
+                            : 'hover:bg-[#f1f3f4] dark:hover:bg-[#303134]'
+                          }
                         `}
                         onClick={() => {
                           onTabChange('compose');
@@ -428,9 +433,12 @@ export const Sidebar: React.FC<SidebarProps> = ({
                       >
                         <div className="flex items-center gap-3">
                           <div className="relative flex-shrink-0">
-                            <div className="w-8 h-8 rounded-full flex items-center justify-center transition-all duration-200
-                              bg-[#ede9fe] text-[#7c3aed] group-hover:bg-[#ddd6fe]
-                            ">
+                            <div className={`w-8 h-8 rounded-full flex items-center justify-center transition-all duration-200
+                              ${activeBulkMessageId === item.id
+                                ? 'bg-[#7c3aed] text-white shadow-[0_4px_8px_rgba(124,58,237,0.2)]'
+                                : 'bg-[#ede9fe] text-[#7c3aed] group-hover:bg-[#ddd6fe]'
+                              }
+                            `}>
                               <FiUsers className="w-4 h-4" />
                             </div>
                           </div>
@@ -452,7 +460,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                             ) : (
                               <>
                                 <div className="flex justify-between items-baseline">
-                                  <span className="text-[13px] truncate font-medium text-[#3c4043] dark:text-[#e8eaed]">
+                                  <span className={`text-[13px] truncate font-medium ${activeBulkMessageId === item.id ? 'font-bold text-[#111111] dark:text-white' : 'text-[#3c4043] dark:text-[#e8eaed]'}`}>
                                     {getBulkDisplayName(item)}
                                   </span>
                                   <div className="flex items-center gap-1">
@@ -498,7 +506,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                                     </div>
                                   </div>
                                 </div>
-                                <div className="text-[12px] truncate leading-tight text-[#5f6368] dark:text-[#9aa0a6]">
+                                <div className={`text-[12px] truncate leading-tight ${activeBulkMessageId === item.id ? 'text-[#6e6e73] dark:text-[#a0a0ab]' : 'text-[#5f6368] dark:text-[#9aa0a6]'}`}>
                                   {item.message.length > 30 ? item.message.substring(0, 30) + '...' : item.message}
                                 </div>
                               </>
