@@ -71,8 +71,8 @@ export const useGroupMessages = (recipientKey?: string, recipientNumbers?: strin
                     console.log('[useGroupMessages] Sample date_created:', batchData[0].date_created);
                 }
                 
-                // Filter to only recipients in this specific bulk message
-                // AND only messages that were sent as part of this bulk message (have the same batch_id)
+                // Filter to only messages from this specific bulk message batch
+                // Show only messages that were sent as part of this bulk message
                 let filtered = batchData;
                 if (recipientNumbers && recipientNumbers.length > 0) {
                     // Normalize the recipient numbers from bulk message
@@ -81,10 +81,11 @@ export const useGroupMessages = (recipientKey?: string, recipientNumbers?: strin
                         .filter((n): n is string => n !== null);
                     console.log('[useGroupMessages] Normalized recipients:', normalizedRecipients);
                     
-                    // Filter: must match recipient numbers AND have the same batch_id
+                    // Filter to messages that: 
+                    // 1. Have the same batch_id (sent as part of this bulk)
+                    // 2. Were sent to one of the recipients
                     filtered = batchData.filter(m => {
-                        // Check if message has batch_id matching current batch
-                        const hasMatchingBatch = m.batch_id === batchId;
+                        const isFromThisBatch = m.batch_id === batchId;
                         
                         // Check if message recipient matches our numbers
                         const messageNumbers = m.numbers || [];
@@ -93,7 +94,7 @@ export const useGroupMessages = (recipientKey?: string, recipientNumbers?: strin
                             .filter((n): n is string => n !== null);
                         const hasMatchingRecipient = normalizedMessageNumbers.some(num => normalizedRecipients.includes(num));
                         
-                        return hasMatchingBatch && hasMatchingRecipient;
+                        return isFromThisBatch && hasMatchingRecipient;
                     });
                     console.log('[useGroupMessages] After filtering:', filtered.length, 'messages');
                 }
