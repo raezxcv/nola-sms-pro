@@ -3,6 +3,35 @@ import { fetchBatchMessages } from "../api/sms";
 import { getHistoryForGroup } from "../utils/storage";
 import type { SmsLog } from "../types/Sms";
 
+// Normalize phone number to 09XXXXXXXXX format for consistent comparison
+const normalizePHNumber = (input: string): string | null => {
+  if (!input) return null;
+  
+  const digits = input.replace(/\D/g, "");
+  
+  // 09XXXXXXXXX → valid
+  if (digits.startsWith("09") && digits.length === 11) {
+    return digits;
+  }
+  
+  // 9XXXXXXXXX → 09XXXXXXXXX
+  if (digits.startsWith("9") && digits.length === 10) {
+    return "0" + digits;
+  }
+  
+  // 639XXXXXXXXX → 09XXXXXXXXX
+  if (digits.startsWith("639") && digits.length === 12) {
+    return "0" + digits.substring(2);
+  }
+  
+  // +639XXXXXXXXX (already digits only)
+  if (digits.startsWith("639") && digits.length === 12) {
+    return "0" + digits.substring(2);
+  }
+  
+  return null;
+};
+
 export const useGroupMessages = (recipientKey?: string, recipientNumbers?: string[], batchId?: string) => {
     const [messages, setMessages] = useState<SmsLog[]>([]);
     const [loading, setLoading] = useState(false);
@@ -19,11 +48,21 @@ export const useGroupMessages = (recipientKey?: string, recipientNumbers?: strin
                 console.log('[useGroupMessages] Filtering by recipientNumbers:', recipientNumbers);
                 
                 // Filter to only recipients in this specific bulk message
+                // Normalize both the recipientNumbers and stored message numbers for comparison
                 let filtered = batchData;
                 if (recipientNumbers && recipientNumbers.length > 0) {
-                    filtered = batchData.filter(m =>
-                        m.numbers?.some(num => recipientNumbers.includes(num))
-                    );
+                    const normalizedRecipients = recipientNumbers
+                        .map(n => normalizePHNumber(n))
+                        .filter((n): n is string => n !== null);
+                    console.log('[useGroupMessages] Normalized recipients:', normalizedRecipients);
+                    
+                    filtered = batchData.filter(m => {
+                        const messageNumbers = m.numbers || [];
+                        const normalizedMessageNumbers = messageNumbers
+                            .map(n => normalizePHNumber(n))
+                            .filter((n): n is string => n !== null);
+                        return normalizedMessageNumbers.some(num => normalizedRecipients.includes(num));
+                    });
                     console.log('[useGroupMessages] After filtering:', filtered.length, 'messages');
                 }
                 
@@ -74,10 +113,19 @@ export const useGroupMessages = (recipientKey?: string, recipientNumbers?: strin
 
             // 4. Filter to only recipients in this group!
             // This is key: "i just want selected contacts not all"
+            // Normalize both for consistent comparison
             if (recipientNumbers && recipientNumbers.length > 0) {
-                flattened = flattened.filter(m =>
-                    m.numbers.some(num => recipientNumbers.includes(num))
-                );
+                const normalizedRecipients = recipientNumbers
+                    .map(n => normalizePHNumber(n))
+                    .filter((n): n is string => n !== null);
+                
+                flattened = flattened.filter(m => {
+                    const messageNumbers = m.numbers || [];
+                    const normalizedMessageNumbers = messageNumbers
+                        .map(n => normalizePHNumber(n))
+                        .filter((n): n is string => n !== null);
+                    return normalizedMessageNumbers.some(num => normalizedRecipients.includes(num));
+                });
             }
 
             // 5. Deduplicate by message_id
