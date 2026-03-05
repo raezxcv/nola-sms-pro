@@ -3,6 +3,7 @@ import type { BulkMessageHistoryItem, Message } from "../types/Sms";
 const BULK_HISTORY_KEY = "nola_sms_bulk_history";
 const DELETED_CONTACTS_KEY = "nola_sms_deleted_contacts";
 const MESSAGES_CACHE_KEY = "nola_sms_messages_cache";
+const BULK_GROUP_NAMES_KEY = "nola_sms_bulk_group_names";
 
 interface MessagesCache {
   [phoneNumber: string]: Message[];
@@ -54,11 +55,53 @@ export const getBulkMessageHistory = (): BulkMessageHistoryItem[] => {
   try {
     const stored = localStorage.getItem(BULK_HISTORY_KEY);
     if (!stored) return [];
-    return JSON.parse(stored);
+    const history: BulkMessageHistoryItem[] = JSON.parse(stored);
+
+    // Mix in custom names from groups if they don't have one
+    const groupNames = getBulkGroupNames();
+    return history.map(item => ({
+      ...item,
+      customName: item.customName || groupNames[item.recipientKey]
+    }));
   } catch (error) {
     console.error("Failed to load bulk message history:", error);
     return [];
   }
+};
+
+export const getRecipientKey = (numbers: string[]): string => {
+  return [...numbers].sort().join(',');
+};
+
+const getBulkGroupNames = (): Record<string, string> => {
+  try {
+    const stored = localStorage.getItem(BULK_GROUP_NAMES_KEY);
+    return stored ? JSON.parse(stored) : {};
+  } catch {
+    return {};
+  }
+};
+
+export const saveBulkGroupName = (recipientKey: string, name: string): void => {
+  try {
+    const groupNames = getBulkGroupNames();
+    groupNames[recipientKey] = name;
+    localStorage.setItem(BULK_GROUP_NAMES_KEY, JSON.stringify(groupNames));
+
+    // Also update existing history items with this key
+    const history = getBulkMessageHistory();
+    const updated = history.map(item =>
+      item.recipientKey === recipientKey ? { ...item, customName: name } : item
+    );
+    localStorage.setItem(BULK_HISTORY_KEY, JSON.stringify(updated));
+  } catch (error) {
+    console.error("Failed to save bulk group name:", error);
+  }
+};
+
+export const getHistoryForGroup = (recipientKey: string): BulkMessageHistoryItem[] => {
+  const history = getBulkMessageHistory();
+  return history.filter(item => item.recipientKey === recipientKey);
 };
 
 export const clearBulkMessageHistory = (): void => {

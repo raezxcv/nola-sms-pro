@@ -9,7 +9,7 @@ export const CreditBadge = () => {
     const fetchBalance = async () => {
         setLoading(true);
         try {
-            const res = await fetch('https://smspro-api.nolacrm.io/api/credits', {
+            const res = await fetch('/api/credits', {
                 headers: {
                     'X-Webhook-Secret': 'f7RkQ2pL9zV3tX8cB1nS4yW6',
                     'Content-Type': 'application/json',

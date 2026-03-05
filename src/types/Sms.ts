@@ -10,6 +10,8 @@ export interface BulkMessageHistoryItem {
   message: string;
   recipientCount: number;
   recipientNames?: string[];
+  recipientNumbers: string[];
+  recipientKey: string;
   customName?: string;
   timestamp: string;
   status: 'sent' | 'partial' | 'failed';

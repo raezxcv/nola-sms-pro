@@ -2,7 +2,7 @@ import { useState, useRef, useEffect, useMemo } from "react";
 import { Snackbar, Alert, Slide } from "@mui/material";
 import { sendSms, sendBulkSms, type SenderId } from "../api/sms";
 import { fetchContacts } from "../api/contacts";
-import { saveBulkMessage } from "../utils/storage";
+import { saveBulkMessage, getRecipientKey, getHistoryForGroup } from "../utils/storage";
 import type { BulkMessageHistoryItem } from "../types/Sms";
 import type { Contact } from "../types/Contact";
 import { FiUser, FiUsers, FiMenu } from "react-icons/fi";
@@ -277,11 +277,14 @@ export const Composer: React.FC<ComposerProps> = ({
         const successCount = results.filter(r => r.success).length;
 
         // Save to bulk message history
+        const recipientNumbers = recipients.map(r => r.phone);
         const bulkItem: BulkMessageHistoryItem = {
           id: `bulk-${Date.now()}`,
           message: messageText,
           recipientCount: recipients.length,
           recipientNames: recipients.map(r => r.name),
+          recipientNumbers,
+          recipientKey: getRecipientKey(recipientNumbers),
           timestamp: new Date().toISOString(),
           status: successCount === recipients.length ? 'sent' : successCount > 0 ? 'partial' : 'failed',
           batchId: batchId
@@ -347,8 +350,17 @@ export const Composer: React.FC<ComposerProps> = ({
     return "";
   };
 
-  if (activeBulkMessage) {
-    return <BulkChatView bulkItem={activeBulkMessage} />;
+  const existingGroupItem = useMemo(() => {
+    if (composeMode === 'bulk' && bulkSelectedContacts.length > 1) {
+      const key = getRecipientKey(bulkSelectedContacts.map(c => c.phone));
+      const groupHistory = getHistoryForGroup(key);
+      return groupHistory.length > 0 ? groupHistory[0] : null;
+    }
+    return null;
+  }, [composeMode, bulkSelectedContacts]);
+
+  if (activeBulkMessage || existingGroupItem) {
+    return <BulkChatView bulkItem={(activeBulkMessage || existingGroupItem) as BulkMessageHistoryItem} />;
   }
 
   return (
