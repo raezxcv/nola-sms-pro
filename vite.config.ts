@@ -74,7 +74,7 @@ const smsProxyPlugin = () => ({
       }
     });
 
-    server.middlewares.use('/api/credits', async (req, res) => {
+    server.middlewares.use('/api/credits', async (_req, res) => {
       try {
         const cloudRunUrl = 'https://smspro-api.nolacrm.io/api/credits';
         const response = await fetch(cloudRunUrl, {
