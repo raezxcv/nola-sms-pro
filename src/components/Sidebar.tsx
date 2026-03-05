@@ -165,7 +165,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
   return (
     <div className={`
-      h-full bg-white/70 dark:bg-[#121415]/80 backdrop-blur-2xl flex-shrink-0 flex flex-col border-r border-[#0000000a] dark:border-[#ffffff0a] shadow-[1px_0_0_rgba(0,0,0,0.05)] relative z-30 transition-all duration-300
+      h-full bg-white/70 dark:bg-[#121415]/80 backdrop-blur-2xl flex-shrink-0 flex flex-col border-r border-[#0000000a] dark:border-[#ffffff0a] shadow-[1px_0_0_rgba(0,0,0,0.05)] relative z-[60] transition-all duration-300
       ${isCollapsed ? 'w-20' : 'w-full'}
     `}>
       {/* Header Profile / Logo Area */}
@@ -274,7 +274,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
             {/* Direct Messages Content - Pull to refresh + Independent scrollable area */}
             <div
               ref={contactsListRef}
-              className={`overflow-y-auto custom-scrollbar transition-all duration-300 ${directMessagesExpanded ? 'max-h-[40vh] opacity-100 mb-2' : 'max-h-0 opacity-0'}`}
+              className={`overflow-y-auto overflow-visible custom-scrollbar transition-all duration-300 pb-4 ${directMessagesExpanded ? 'max-h-[40vh] opacity-100 mb-2' : 'max-h-0 opacity-0'}`}
               onTouchStart={(e) => { touchStartY.current = e.touches[0].clientY; }}
               onTouchEnd={(e) => {
                 const delta = e.changedTouches[0].clientY - touchStartY.current;
@@ -364,7 +364,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                                 </button>
                                 {openMenuId === contact.id && (
                                   <div
-                                    className="absolute right-0 top-full mt-1 bg-white dark:bg-[#2d2d2d] rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 py-1 min-w-[100px] z-50"
+                                    className="absolute right-0 top-full mt-1 bg-white dark:bg-[#2d2d2d] rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 py-1 min-w-[100px] z-[9999] overflow-visible"
                                     onClick={(e) => e.stopPropagation()}
                                   >
                                     <button
@@ -410,7 +410,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
               </div>
 
               {/* Bulk Messages Content - Independent scrollable area */}
-              <div className={`overflow-y-auto custom-scrollbar transition-all duration-300 ${bulkMessagesExpanded ? 'max-h-[40vh] opacity-100' : 'max-h-0 opacity-0'}`}>
+              <div className={`overflow-y-auto overflow-visible custom-scrollbar transition-all duration-300 pb-24 ${bulkMessagesExpanded ? 'max-h-none opacity-100' : 'max-h-0 opacity-0'}`}>
                 <div className="flex flex-col gap-0.5">
                   {bulkHistory.length > 0 ? (
                     bulkHistory.map(item => (
@@ -431,7 +431,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                           }
                         }}
                       >
-                        <div className="flex items-center gap-3">
+                        <div className="flex items-center gap-3 overflow-visible">
                           <div className="relative flex-shrink-0">
                             <div className={`w-8 h-8 rounded-full flex items-center justify-center transition-all duration-200
                               ${activeBulkMessageId === item.id
@@ -442,7 +442,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                               <FiUsers className="w-4 h-4" />
                             </div>
                           </div>
-                          <div className="flex-1 min-w-0">
+                          <div className="flex-1 min-w-0 overflow-visible">
                             {editingBulkId === item.id ? (
                               <input
                                 type="text"
@@ -459,11 +459,11 @@ export const Sidebar: React.FC<SidebarProps> = ({
                               />
                             ) : (
                               <>
-                                <div className="flex justify-between items-baseline">
+                                <div className="flex justify-between items-baseline overflow-visible">
                                   <span className={`text-[13px] truncate font-medium ${activeBulkMessageId === item.id ? 'font-bold text-[#111111] dark:text-white' : 'text-[#3c4043] dark:text-[#e8eaed]'}`}>
                                     {getBulkDisplayName(item)}
                                   </span>
-                                  <div className="flex items-center gap-1">
+                                  <div className="flex items-center gap-1 overflow-visible">
                                     <div className="relative">
                                       <button
                                         onClick={(e) => {
@@ -476,7 +476,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                                       </button>
                                       {openMenuId === item.id && (
                                         <div
-                                          className="absolute right-0 top-full mt-1 bg-white dark:bg-[#2d2d2d] rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 py-1 min-w-[100px] z-50"
+                                          className="absolute right-0 top-full mt-1 bg-white dark:bg-[#2d2d2d] rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 py-1 min-w-[100px] z-[9999] overflow-visible"
                                           onClick={(e) => e.stopPropagation()}
                                         >
                                           <button
@@ -528,7 +528,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
       </div>
 
       {/* Settings Only Footer */}
-      <div className={`p-4 bg-transparent border-t border-[#0000000a] dark:border-[#ffffff0a] ${isCollapsed ? 'px-2 flex justify-center' : ''}`}>
+      <div className={`p-4 bg-white/90 dark:bg-[#121415]/90 border-t border-[#0000000a] dark:border-[#ffffff0a] relative z-[70] backdrop-blur-sm ${isCollapsed ? 'px-2 flex justify-center' : ''}`}>
         <button
           onClick={() => onTabChange('settings')}
           className={`

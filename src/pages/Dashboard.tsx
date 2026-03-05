@@ -113,15 +113,15 @@ export const Dashboard: React.FC<DashboardProps> = ({ isMobileMenuOpen: external
   };
 
   return (
-    <div className="flex h-screen bg-[#ffffff] dark:bg-[#202123] overflow-hidden">
+    <div className="flex h-screen bg-[#ffffff] dark:bg-[#202123] overflow-visible">
       {/* Sidebar - Left */}
       <div className={`
-        fixed md:relative z-50 h-full transition-all duration-300 ease-in-out
+        fixed md:relative z-[45] md:z-50 h-full transition-all duration-300 ease-in-out
         ${isMobileMenuOpen ? 'w-80 border-r border-[#0000001a] dark:border-[#ffffff1a] bg-white dark:bg-[#121415]' : 'w-0 md:w-auto'}
         ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}
-        overflow-hidden
+        overflow-visible
       `}>
-        <div className={`h-full transition-all duration-300 ${isSidebarCollapsed ? 'md:w-20' : 'md:w-80 w-80'}`}>
+        <div className={`h-full transition-all duration-300 z-[60] ${isSidebarCollapsed ? 'md:w-20' : 'md:w-80 w-80'}`}>
           <Sidebar
             activeTab={currentView}
             onTabChange={handleTabChange}

@@ -237,7 +237,7 @@ export const ContactsTab: React.FC<ContactsTabProps> = ({ onSendToComposer, onVi
         <div className="max-w-5xl mx-auto px-3 md:px-6 py-4">
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-[#2b83fa] flex items-center justify-center text-white shadow-lg shadow-blue-500/20">
+              <div className="w-10 h-10 rounded-full bg-gradient-to-br from-[#2b83fa] to-[#60a5fa] flex items-center justify-center text-white shadow-md shadow-blue-500/10">
                 <FiUser className="h-5 w-5" />
               </div>
               <div>
