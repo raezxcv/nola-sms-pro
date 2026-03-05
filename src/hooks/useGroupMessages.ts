@@ -3,33 +3,45 @@ import { fetchBatchMessages } from "../api/sms";
 import { getHistoryForGroup } from "../utils/storage";
 import type { Message } from "../types/Sms";
 
+// Helper to parse date from Firestore timestamp or string
+const parseDate = (dateField: string | { _seconds: number; _nanoseconds: number } | undefined): number => {
+    if (!dateField) return 0;
+    if (typeof dateField === 'string') {
+        return new Date(dateField).getTime();
+    }
+    if (dateField._seconds) {
+        return dateField._seconds * 1000;
+    }
+    return 0;
+};
+
 // Normalize phone number to 09XXXXXXXXX format for consistent comparison
 const normalizePHNumber = (input: string): string | null => {
-  if (!input) return null;
-  
-  const digits = input.replace(/\D/g, "");
-  
-  // 09XXXXXXXXX → valid
-  if (digits.startsWith("09") && digits.length === 11) {
-    return digits;
-  }
-  
-  // 9XXXXXXXXX → 09XXXXXXXXX
-  if (digits.startsWith("9") && digits.length === 10) {
-    return "0" + digits;
-  }
-  
-  // 639XXXXXXXXX → 09XXXXXXXXX
-  if (digits.startsWith("639") && digits.length === 12) {
-    return "0" + digits.substring(2);
-  }
-  
-  // +639XXXXXXXXX (already digits only)
-  if (digits.startsWith("639") && digits.length === 12) {
-    return "0" + digits.substring(2);
-  }
-  
-  return null;
+    if (!input) return null;
+    
+    const digits = input.replace(/\D/g, "");
+    
+    // 09XXXXXXXXX → valid
+    if (digits.startsWith("09") && digits.length === 11) {
+        return digits;
+    }
+    
+    // 9XXXXXXXXX → 09XXXXXXXXX
+    if (digits.startsWith("9") && digits.length === 10) {
+        return "0" + digits;
+    }
+    
+    // 639XXXXXXXXX → 09XXXXXXXXX
+    if (digits.startsWith("639") && digits.length === 12) {
+        return "0" + digits.substring(2);
+    }
+    
+    // +639XXXXXXXXX (already digits only)
+    if (digits.startsWith("639") && digits.length === 12) {
+        return "0" + digits.substring(2);
+    }
+    
+    return null;
 };
 
 export const useGroupMessages = (recipientKey?: string, recipientNumbers?: string[], batchId?: string) => {
@@ -68,16 +80,16 @@ export const useGroupMessages = (recipientKey?: string, recipientNumbers?: strin
                 
                 // Sort by date (chronological)
                 filtered.sort((a, b) => {
-                    const dateA = typeof a.date_created === 'string' ? new Date(a.date_created).getTime() : a.date_created._seconds * 1000;
-                    const dateB = typeof b.date_created === 'string' ? new Date(b.date_created).getTime() : b.date_created._seconds * 1000;
+                    const dateA = parseDate(a.date_created);
+                    const dateB = parseDate(b.date_created);
                     return dateA - dateB;
                 });
                 
                 // Transform to UI format: map message->text, date_created->timestamp, sender_id->senderName
                 const transformedMessages: Message[] = filtered.map(m => ({
                     id: m.message_id,
-                    text: m.message,
-                    timestamp: typeof m.date_created === 'string' ? new Date(m.date_created) : new Date(m.date_created._seconds * 1000),
+                    text: m.message || '',
+                    timestamp: new Date(parseDate(m.date_created)),
                     senderName: m.sender_id || 'NOLACRM',
                     status: (m.status || 'sent') as Message['status'],
                 }));
@@ -142,16 +154,16 @@ export const useGroupMessages = (recipientKey?: string, recipientNumbers?: strin
 
             // 6. Sort by date (chronological)
             unique.sort((a, b) => {
-                const dateA = typeof a.date_created === 'string' ? new Date(a.date_created).getTime() : a.date_created._seconds * 1000;
-                const dateB = typeof b.date_created === 'string' ? new Date(b.date_created).getTime() : b.date_created._seconds * 1000;
+                const dateA = parseDate(a.date_created);
+                const dateB = parseDate(b.date_created);
                 return dateA - dateB;
             });
 
             // Transform to UI format: map message->text, date_created->timestamp, sender_id->senderName
             const transformedMessages: Message[] = unique.map(m => ({
                 id: m.message_id,
-                text: m.message,
-                timestamp: typeof m.date_created === 'string' ? new Date(m.date_created) : new Date(m.date_created._seconds * 1000),
+                text: m.message || '',
+                timestamp: new Date(parseDate(m.date_created)),
                 senderName: m.sender_id || 'NOLACRM',
                 status: (m.status || 'sent') as Message['status'],
             }));
