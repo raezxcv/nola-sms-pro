@@ -4,15 +4,20 @@ import { getHistoryForGroup } from "../utils/storage";
 import type { Message } from "../types/Sms";
 
 // Helper to parse date from Firestore timestamp or string
-const parseDate = (dateField: string | { _seconds: number; _nanoseconds: number } | undefined): number => {
-    if (!dateField) return 0;
-    if (typeof dateField === 'string') {
-        return new Date(dateField).getTime();
+const parseDate = (dateField: unknown): number => {
+    try {
+        if (!dateField) return Date.now();
+        if (typeof dateField === 'string') {
+            return new Date(dateField).getTime();
+        }
+        if (dateField && typeof dateField === 'object' && '_seconds' in dateField) {
+            const ts = dateField as { _seconds: number };
+            return ts._seconds * 1000;
+        }
+        return Date.now();
+    } catch {
+        return Date.now();
     }
-    if (dateField._seconds) {
-        return dateField._seconds * 1000;
-    }
-    return 0;
 };
 
 // Normalize phone number to 09XXXXXXXXX format for consistent comparison
@@ -58,6 +63,12 @@ export const useGroupMessages = (recipientKey?: string, recipientNumbers?: strin
                 const batchData = await fetchBatchMessages(batchId);
                 console.log('[useGroupMessages] Batch data received:', batchData.length, 'messages');
                 console.log('[useGroupMessages] Filtering by recipientNumbers:', recipientNumbers);
+                
+                // Debug: check what fields the messages have
+                if (batchData.length > 0) {
+                    console.log('[useGroupMessages] Sample message fields:', Object.keys(batchData[0]));
+                    console.log('[useGroupMessages] Sample date_created:', batchData[0].date_created);
+                }
                 
                 // Filter to only recipients in this specific bulk message
                 // Normalize both the recipientNumbers and stored message numbers for comparison

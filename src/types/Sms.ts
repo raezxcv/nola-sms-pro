@@ -24,7 +24,7 @@ export interface SmsLog {
   message: string;
   sender_id: string;
   status: string;
-  date_created: string | { _seconds: number; _nanoseconds: number };
+  date_created?: string | { _seconds: number; _nanoseconds: number };
   source?: string;
   direction?: 'inbound' | 'outbound';
   batch_id?: string;
