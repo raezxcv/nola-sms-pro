@@ -172,10 +172,12 @@ export const sendBulkSms = async (
   message: string,
   senderName: string = "NOLACRM",
   contacts: { phone: string, name: string }[] = [],
-  recipientKey?: string
+  recipientKey?: string,
+  existingBatchId?: string
 ): Promise<{ results: SendSmsResponse[], batchId: string }> => {
   const results: SendSmsResponse[] = [];
-  const batchId = `batch-${Date.now()}`;
+  // Use existing batchId if provided, otherwise create a new one
+  const batchId = existingBatchId || `batch-${Date.now()}`;
 
   for (const phone of phoneNumbers) {
     const contact = contacts.find(c => normalizePHNumber(c.phone) === normalizePHNumber(phone));

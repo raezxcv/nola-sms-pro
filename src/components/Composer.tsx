@@ -127,9 +127,9 @@ export const Composer: React.FC<ComposerProps> = ({
 
   const { messages: groupMessages, loading: groupLoading, refresh: refreshGroup } = useGroupMessages(recipientKey, recipientNumbers, activeBulkMessage?.batchId);
 
-  const messages = composeMode === 'bulk' && bulkSelectedContacts.length > 1 ? groupMessages : (singleMessages as any[]);
-  const historyLoading = composeMode === 'bulk' && bulkSelectedContacts.length > 1 ? groupLoading : singleLoading;
-  const refresh = composeMode === 'bulk' && bulkSelectedContacts.length > 1 ? refreshGroup : refreshSingle;
+  const messages = (composeMode === 'bulk' && (bulkSelectedContacts.length > 1 || activeBulkMessage)) ? groupMessages : (singleMessages as any[]);
+  const historyLoading = (composeMode === 'bulk' && (bulkSelectedContacts.length > 1 || activeBulkMessage)) ? groupLoading : singleLoading;
+  const refresh = (composeMode === 'bulk' && (bulkSelectedContacts.length > 1 || activeBulkMessage)) ? refreshGroup : refreshSingle;
 
   const dropdownRef = useRef<HTMLDivElement>(null);
 
@@ -295,10 +295,20 @@ export const Composer: React.FC<ComposerProps> = ({
 
   // Get active recipients based on context
   const getActiveRecipients = (): Contact[] => {
-    if (!isNewMessage) {
-      return selectedContacts;
+    // If we have an active bulk message conversation, use its recipients
+    if (activeBulkMessage) {
+      return activeBulkMessage.recipientNumbers.map((num, i) => ({
+        id: `bulk-${num}`,
+        name: activeBulkMessage.recipientNames?.[i] || num,
+        phone: num
+      }));
     }
-    if (composeMode === "bulk" || composeMode === "single") {
+    // If we have an active contact (direct message conversation)
+    if (activeContact) {
+      return [activeContact];
+    }
+    // For new message flow
+    if (composeMode === 'bulk' || composeMode === 'single') {
       return bulkSelectedContacts;
     }
     return [];
@@ -329,33 +339,61 @@ export const Composer: React.FC<ComposerProps> = ({
     setAttachedFiles([]);
 
     try {
-      if (recipients.length === 1) {
-        // Optimistic update for single message
-        const tempId = addOptimisticMessage(messageText, senderName);
-        const smsResult = await sendSms(recipients[0].phone, messageText, senderName, undefined, recipients[0].name);
+      // Check if we're viewing an existing bulk message conversation
+      const isExistingBulkConversation = activeBulkMessage && recipients.length > 1;
+      
+      if (recipients.length === 1 || isExistingBulkConversation) {
+        // Single message or appending to existing bulk conversation
+        if (recipients.length === 1) {
+          // Optimistic update for single message
+          const tempId = addOptimisticMessage(messageText, senderName);
+          const smsResult = await sendSms(recipients[0].phone, messageText, senderName, undefined, recipients[0].name);
 
-        if (smsResult.success) {
-          updateMessageStatus(tempId, 'sent');
-          setToastSeverity("success");
-          setToastMessage(smsResult.message || "Message sent successfully!");
+          if (smsResult.success) {
+            updateMessageStatus(tempId, 'sent');
+            setToastSeverity("success");
+            setToastMessage(smsResult.message || "Message sent successfully!");
 
-          // Dispatch event to refresh credit balance
-          window.dispatchEvent(new Event('sms-sent'));
+            // Dispatch event to refresh credit balance
+            window.dispatchEvent(new Event('sms-sent'));
 
-          // Re-fetch from database after a short delay to get the stored message
-          setTimeout(() => refresh(), 2000);
+            // Re-fetch from database after a short delay to get the stored message
+            setTimeout(() => refresh(), 2000);
 
-          // Navigate to contact view if not already there
-          if (isNewMessage && onSelectContact && recipients[0]) {
-            setTimeout(() => onSelectContact(recipients[0]), 500);
+            // Navigate to contact view if not already there
+            if (activeContact) {
+              // Already viewing contact, just refresh
+            } else if (onSelectContact && recipients[0]) {
+              setTimeout(() => onSelectContact(recipients[0]), 500);
+            }
+          } else {
+            updateMessageStatus(tempId, 'failed');
+            setToastSeverity("error");
+            setToastMessage(smsResult.message || "Failed to send message");
           }
         } else {
-          updateMessageStatus(tempId, 'failed');
-          setToastSeverity("error");
-          setToastMessage(smsResult.message || "Failed to send message");
+          // Sending to existing bulk conversation - use existing recipientKey
+          const phones = recipients.map(c => c.phone);
+          const recipientKey = activeBulkMessage?.recipientKey || getRecipientKey(phones);
+          const batchId = activeBulkMessage?.batchId; // Use existing batchId to keep in same conversation
+          
+          // Send bulk SMS - if we have an existing batchId, it will add to that conversation
+          const { results } = await sendBulkSms(phones, messageText, senderName, recipients, recipientKey, batchId);
+          const successCount = results.filter(r => r.success).length;
+
+          if (successCount > 0) {
+            setToastSeverity("success");
+            setToastMessage(`Sent ${successCount} of ${recipients.length} messages`);
+            
+            // Refresh to show new messages in the conversation
+            setTimeout(() => refreshGroup(), 2000);
+          } else {
+            setToastSeverity("error");
+            setToastMessage("Failed to send bulk messages");
+          }
         }
       } else {
-        // Bulk SMS sending
+        // NEW bulk SMS sending (creating new conversation)
         const phones = recipients.map(c => c.phone);
         const recipientKey = getRecipientKey(phones);
         const { results, batchId } = await sendBulkSms(phones, messageText, senderName, recipients, recipientKey);
@@ -381,10 +419,13 @@ export const Composer: React.FC<ComposerProps> = ({
           setToastSeverity("success");
           setToastMessage(`Sent ${successCount} of ${recipients.length} messages`);
 
-          // Navigate to bulk history if not already there
-          if (isNewMessage && onSelectBulkMessage) {
-            setTimeout(() => onSelectBulkMessage(bulkItem), 500);
+          // First, navigate to bulk message view (this sets activeBulkMessage in Dashboard)
+          if (onSelectBulkMessage) {
+            onSelectBulkMessage(bulkItem);
           }
+          
+          // Then refresh group messages after navigation to fetch from Firestore
+          setTimeout(() => refreshGroup(), 2000);
         } else {
           setToastSeverity("error");
           setToastMessage("Failed to send bulk messages");
@@ -409,9 +450,15 @@ export const Composer: React.FC<ComposerProps> = ({
 
   const getSendButtonText = () => {
     if (loading) return "";
-    if (!isNewMessage) {
-      return selectedContacts.length > 1 ? `Send to ${selectedContacts.length}` : "Send";
+    // When viewing an existing bulk message conversation, allow sending
+    if (activeBulkMessage) {
+      return "Send";
     }
+    // When viewing an existing direct message conversation
+    if (activeContact) {
+      return "Send";
+    }
+    // For new message flow
     if (composeMode === "bulk") {
       return bulkSelectedContacts.length > 0 ? `Send to ${bulkSelectedContacts.length}` : "Send";
     }
@@ -420,18 +467,24 @@ export const Composer: React.FC<ComposerProps> = ({
 
   const isSendDisabled = () => {
     if (loading || !message) return true;
-    if (!isNewMessage && selectedContacts.length === 0) return true;
-    if (isNewMessage) {
-      if (bulkSelectedContacts.length === 0) return true;
+    // Allow sending when viewing an existing conversation
+    if (activeBulkMessage || activeContact) {
+      return false;
     }
+    // For new message flow, need recipients
+    if (bulkSelectedContacts.length === 0) return true;
     return false;
   };
 
   const getSendDisabledReason = (): string => {
     if (loading) return "Sending in progress...";
     if (!message) return "Enter a message to send";
-    if (!isNewMessage && selectedContacts.length === 0) return "Select a contact to send to";
-    if (isNewMessage && bulkSelectedContacts.length === 0) return "Select at least one recipient";
+    // Allow sending when viewing an existing conversation
+    if (activeBulkMessage || activeContact) {
+      return "";
+    }
+    // For new message flow, need recipients
+    if (bulkSelectedContacts.length === 0) return "Select at least one recipient";
     return "";
   };
 
@@ -442,7 +495,7 @@ export const Composer: React.FC<ComposerProps> = ({
       {/* 1. Header & Recipient Area (Sticky) */}
       <div className="flex-shrink-0 z-30 bg-white/80 dark:bg-[#1a1b1e]/80 backdrop-blur-xl border-b border-gray-200/60 dark:border-white/5 shadow-sm">
         {activePhoneNumber ? (
-          /* Chat Header for specific contact */
+          /* Chat Header for specific contact - Direct Messages */
           <div className="max-w-5xl mx-auto px-4 sm:px-6 py-3 sm:py-4 flex flex-row items-center justify-between gap-3">
             <div className="flex items-center gap-2 sm:gap-4 min-w-0 flex-1">
               <button
@@ -465,7 +518,48 @@ export const Composer: React.FC<ComposerProps> = ({
               </div>
             </div>
 
-            {/* Consistently styled Sender Selection */}
+            {/* Sender and Credits */}
+            <div className="flex items-center gap-2 group">
+              <div className="flex-shrink-0 order-2 sm:order-1">
+                <CreditBadge />
+              </div>
+              <div className="flex-shrink-0 order-1 sm:order-2">
+                <SenderSelector
+                  value={senderName}
+                  onChange={setSenderName}
+                  onRequestSettings={onRequestSettings}
+                />
+              </div>
+            </div>
+          </div>
+        ) : activeBulkMessage ? (
+          /* Bulk Message Conversation Header - Clean view like direct messages */
+          <div className="max-w-5xl mx-auto px-4 sm:px-6 py-3 sm:py-4 flex flex-row items-center justify-between gap-3">
+            <div className="flex items-center gap-2 sm:gap-4 min-w-0 flex-1">
+              <button
+                onClick={onToggleMobileMenu}
+                className="md:hidden p-2 rounded-lg text-gray-400 hover:text-gray-600 dark:hover:text-[#ececf1] transition-colors"
+                aria-label="Toggle sidebar"
+              >
+                <FiMenu className="h-5 w-5" />
+              </button>
+              <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-gradient-to-br from-[#7c3aed] to-[#a78bfa] flex-shrink-0 flex items-center justify-center text-white font-bold text-base sm:text-lg shadow-md shadow-purple-500/20">
+                <FiUsers className="h-5 w-5 sm:h-6 sm:w-6" />
+              </div>
+              <div className="flex flex-col min-w-0">
+                <h2 className="text-[15px] sm:text-[17px] font-bold text-[#111111] dark:text-[#ececf1] leading-tight tracking-tight truncate">
+                  {activeBulkMessage.customName || 
+                    (activeBulkMessage.recipientNames && activeBulkMessage.recipientNames.length > 0 
+                      ? activeBulkMessage.recipientNames.slice(0, 2).join(', ') + (activeBulkMessage.recipientNames.length > 2 ? ` +${activeBulkMessage.recipientNames.length - 2}` : '')
+                      : `${activeBulkMessage.recipientCount} recipients`)}
+                </h2>
+                <span className="text-[12px] sm:text-[13px] text-gray-500 dark:text-gray-400 font-medium truncate">
+                  {activeBulkMessage.recipientCount} recipient{activeBulkMessage.recipientCount !== 1 ? 's' : ''}
+                </span>
+              </div>
+            </div>
+
+            {/* Sender and Credits */}
             <div className="flex items-center gap-2 group">
               <div className="flex-shrink-0 order-2 sm:order-1">
                 <CreditBadge />
@@ -492,36 +586,35 @@ export const Composer: React.FC<ComposerProps> = ({
                   <FiMenu className="h-5 w-5" />
                 </button>
 
-                {/* Circular Avatar - matches individual contact style */}
-                <div className="w-10 h-10 sm:w-11 sm:h-11 rounded-full bg-gradient-to-br from-[#7c3aed] to-[#a78bfa] flex-shrink-0 flex items-center justify-center text-white font-bold text-base shadow-md shadow-purple-500/20">
-                  <FiUsers className="h-5 w-5" />
+                {/* Circular Avatar - Blue for new message, Purple for bulk */}
+                <div className={`w-10 h-10 sm:w-11 sm:h-11 rounded-full flex-shrink-0 flex items-center justify-center text-white font-bold text-base shadow-md 
+                  ${activeBulkMessage 
+                    ? 'bg-gradient-to-br from-[#7c3aed] to-[#a78bfa] shadow-purple-500/20' 
+                    : 'bg-gradient-to-br from-[#2b83fa] to-[#60a5fa] shadow-blue-500/20'}`}>
+                  {activeBulkMessage ? (
+                    <FiUsers className="h-5 w-5" />
+                  ) : (
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-[18px] w-[18px]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.2}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0115.75 21H5.25A2.25 2.25 0 013 18.75V8.25A2.25 2.25 0 015.25 6H10" />
+                    </svg>
+                  )}
                 </div>
 
                 <div className="flex flex-col min-w-0">
                   <h2 className="text-[15px] sm:text-[16px] font-bold text-[#111111] dark:text-[#ececf1] leading-tight tracking-tight truncate">
-                    {activeBulkMessage ? (
-                      activeBulkMessage.customName || 
-                      (activeBulkMessage.recipientNames && activeBulkMessage.recipientNames.length > 0 
-                        ? activeBulkMessage.recipientNames.slice(0, 2).join(', ') + (activeBulkMessage.recipientNames.length > 2 ? ` +${activeBulkMessage.recipientNames.length - 2}` : '')
-                        : `${activeBulkMessage.recipientCount} recipients`)
+                    {composeMode === 'bulk' && bulkSelectedContacts.length > 0 ? (
+                      (() => {
+                        const count = bulkSelectedContacts.length;
+                        if (count === 1) return `To: ${toProperCase(bulkSelectedContacts[0].name)}`;
+                        if (count === 2) return `To: ${toProperCase(bulkSelectedContacts[0].name)}, ${toProperCase(bulkSelectedContacts[1].name)}`;
+                        return `To: ${toProperCase(bulkSelectedContacts[0].name)}, ${toProperCase(bulkSelectedContacts[1].name)} +${count - 2} more`;
+                      })()
                     ) : (
-                      composeMode === 'bulk' && bulkSelectedContacts.length > 0 ? (
-                        (() => {
-                          const count = bulkSelectedContacts.length;
-                          if (count === 1) return `To: ${toProperCase(bulkSelectedContacts[0].name)}`;
-                          if (count === 2) return `To: ${toProperCase(bulkSelectedContacts[0].name)}, ${toProperCase(bulkSelectedContacts[1].name)}`;
-                          return `To: ${toProperCase(bulkSelectedContacts[0].name)}, ${toProperCase(bulkSelectedContacts[1].name)} +${count - 2} more`;
-                        })()
-                      ) : (
-                        "New Message"
-                      )
+                      "New Message"
                     )}
                   </h2>
                   <span className="text-[12px] sm:text-[13px] text-gray-500 dark:text-gray-400 font-medium truncate">
-                    {activeBulkMessage 
-                      ? `${activeBulkMessage.recipientCount} recipient${activeBulkMessage.recipientCount !== 1 ? 's' : ''}`
-                      : (bulkSelectedContacts.length > 0 ? `${bulkSelectedContacts.length} selected` : 'Select recipients')
-                    }
+                    {bulkSelectedContacts.length > 0 ? `${bulkSelectedContacts.length} selected` : 'Select recipients'}
                   </span>
                 </div>
               </div>
@@ -764,7 +857,8 @@ export const Composer: React.FC<ComposerProps> = ({
           ) : (
             <div className={`space-y-1 ${composeMode === 'bulk' && bulkSelectedContacts.length > 1 ? 'max-w-4xl mx-auto w-full' : ''}`}>
               {(() => {
-                const isGroupView = composeMode === 'bulk' && bulkSelectedContacts.length > 1;
+                // Group view: show bulk messages organized by batch
+                const isGroupView = (composeMode === 'bulk' && bulkSelectedContacts.length > 1) || activeBulkMessage;
 
                 if (isGroupView) {
                   const campaigns: { [key: string]: SmsLog[] } = {};

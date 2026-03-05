@@ -13,7 +13,10 @@ export const useGroupMessages = (recipientKey?: string, recipientNumbers?: strin
         if (batchId) {
             if (showLoading) setLoading(true);
             try {
+                console.log('[useGroupMessages] Fetching batch:', batchId);
                 const batchData = await fetchBatchMessages(batchId);
+                console.log('[useGroupMessages] Batch data received:', batchData.length, 'messages');
+                console.log('[useGroupMessages] Filtering by recipientNumbers:', recipientNumbers);
                 
                 // Filter to only recipients in this specific bulk message
                 let filtered = batchData;
@@ -21,6 +24,7 @@ export const useGroupMessages = (recipientKey?: string, recipientNumbers?: strin
                     filtered = batchData.filter(m =>
                         m.numbers?.some(num => recipientNumbers.includes(num))
                     );
+                    console.log('[useGroupMessages] After filtering:', filtered.length, 'messages');
                 }
                 
                 // Sort by date (chronological)
@@ -31,6 +35,7 @@ export const useGroupMessages = (recipientKey?: string, recipientNumbers?: strin
                 });
                 
                 setMessages(filtered);
+                console.log('[useGroupMessages] Final messages set:', filtered.length);
             } catch (error) {
                 console.error("Failed to fetch batch messages:", error);
             } finally {

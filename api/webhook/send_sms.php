@@ -11,38 +11,44 @@ require __DIR__ . '/firestore_client.php';
 require __DIR__ . '/../auth_helpers.php';
 
 $SEMAPHORE_API_KEY = $config['SEMAPHORE_API_KEY'];
-$SEMAPHORE_URL = $config['SEMAPHORE_URL'];
-$SENDER_IDS = $config['SENDER_IDS'];
+$SEMAPHORE_URL     = $config['SEMAPHORE_URL'];
+$SENDER_IDS        = $config['SENDER_IDS'];
 
-// Standardized Auth
-$headers = getallheaders();
-$receivedSecret = $headers['X-Webhook-Secret'] ?? $headers['x-webhook-secret'] ?? '';
-if ($receivedSecret !== 'f7RkQ2pL9zV3tX8cB1nS4yW6') {
-    http_response_code(401);
-    die(json_encode(["status" => "error", "message" => "Unauthorized"]));
-}
+validate_api_request();
 
 function log_sms($label, $data)
 {
     $log_line = "[" . date('Y-m-d H:i:s') . "] $label: " .
         json_encode($data, JSON_PRETTY_PRINT);
+
+    // Send to Cloud Run logs (Cloud Logging)
     error_log($log_line);
 }
 
 function clean_numbers($numberString)
 {
-    $numbers = explode(',', $numberString);
+    if ($numberString === null || $numberString === '') {
+        return [];
+    }
+    $numbers = is_array($numberString) ? $numberString : explode(',', (string)$numberString);
     $cleanNumbers = [];
+
     foreach ($numbers as $num) {
-        $num = trim($num);
-        $num = preg_replace('/\s+/', '', $num);
+        $num = trim((string)$num);
+        $num = preg_replace('/[\s\-\.\(\)]/', '', $num);
+        if ($num === '') continue;
+
         if (substr($num, 0, 3) === '+63') {
             $num = '0' . substr($num, 3);
+        }
+        if (preg_match('/^63\d{9}$/', $num)) {
+            $num = '0' . substr($num, 2);
         }
         if (preg_match('/^09\d{9}$/', $num)) {
             $cleanNumbers[] = $num;
         }
     }
+
     return $cleanNumbers;
 }
 
@@ -59,15 +65,38 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
 }
 
 // Handle POST
-$payload = json_decode(file_get_contents('php://input'), true) ?? $_POST;
+$raw = file_get_contents('php://input');
+$payload = json_decode($raw, true);
+if (!is_array($payload)) {
+    $payload = $_POST;
+}
 log_sms("INCOMING", $payload);
 
 $customData = $payload['customData'] ?? [];
-$number_input = $customData['number'] ?? '';
-$message = trim($customData['message'] ?? '');
-$sender = $customData['sendername'] ?? ($SENDER_IDS[0] ?? "");
+// Get number from many possible GHL payload locations (Default vs Custom)
+$number_input = $customData['number'] ?? $customData['phone'] ?? $payload['number'] ?? $payload['phone'] ?? '';
+if ($number_input === '' && !empty($payload['contact'])) {
+    $contact = is_array($payload['contact']) ? $payload['contact'] : [];
+    $number_input = $contact['phone'] ?? $contact['phoneNumber'] ?? $contact['number']
+        ?? $contact['workPhone'] ?? $contact['cellPhone'] ?? $contact['smartPhone'] ?? $contact['primaryPhone'] ?? '';
+}
+// GHL sometimes puts phone in customField array
+if ($number_input === '' && !empty($payload['contact']['customField'])) {
+    $fields = $payload['contact']['customField'];
+    if (is_array($fields)) {
+        foreach ($fields as $f) {
+            if (!empty($f['value']) && preg_match('/^(\+?63|0)\d{9,10}$/', preg_replace('/\s+/', '', (string)$f['value']))) {
+                $number_input = trim((string)$f['value']);
+                break;
+            }
+        }
+    }
+}
+
+$message = trim($customData['message'] ?? $payload['message'] ?? '');
+$sender = $customData['sendername'] ?? $payload['sendername'] ?? ($SENDER_IDS[0] ?? "");
 $batch_id = $customData['batch_id'] ?? null;
-$contact_name = $customData['name'] ?? null; // [NEW] Capture contact name
+$contact_name = $customData['name'] ?? ($payload['contact']['name'] ?? null);
 $recipient_key = $customData['recipient_key'] ?? null; // [NEW] For grouping bulk messages
 
 if (!in_array($sender, $SENDER_IDS)) {
@@ -76,7 +105,11 @@ if (!in_array($sender, $SENDER_IDS)) {
 
 $validNumbers = clean_numbers($number_input);
 if (empty($validNumbers)) {
-    die(json_encode(["status" => "error", "message" => "No valid Philippine numbers found"]));
+    error_log('[send_sms] No valid PH numbers. Received number value: ' . json_encode($number_input) . ' | Payload keys: ' . implode(',', array_keys($payload ?? [])));
+    die(json_encode([
+        "status" => "error",
+        "message" => "No valid Philippine numbers found. In GHL workflow, map Contact Phone to customData.number, or use Default payload so contact.phone is sent. Number must be 09XXXXXXXXX or +639XXXXXXXXX."
+    ]));
 }
 
 if (empty($message)) {
@@ -135,7 +168,7 @@ if ($http_status == 200 && is_array($result)) {
                 'source' => 'api',
                 'batch_id' => $batch_id,
                 'name' => $contact_name,
-                'recipient_key' => $recipient_key, // [NEW] For grouping bulk messages
+                'recipient_key' => $recipient_key, // [NEW] Store recipient key for bulk message grouping
             ], ['merge' => true]);
         }
     }
