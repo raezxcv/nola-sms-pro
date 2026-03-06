@@ -126,12 +126,11 @@ export const sendSms = async (
     },
   };
 
-  const SEND_SMS_URL = "https://smspro-api.nolacrm.io/webhook/send_sms";
-  console.log("Sending SMS to new backend:", payload);
-  console.log("Sending to:", SEND_SMS_URL);
+  console.log("Sending SMS payload via proxy:", payload);
+  console.log("Sending to:", WEBHOOK_URL);
 
   try {
-    const res = await fetch(SEND_SMS_URL, {
+    const res = await fetch(WEBHOOK_URL, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",

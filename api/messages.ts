@@ -21,7 +21,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     if (action === 'fetch_bulk_messages') {
       // Fetch all bulk messages from Firestore
-      const cloudRunUrl = `${CLOUD_RUN_URL}/webhook/fetch_bulk_messages`;
+      const cloudRunUrl = `${CLOUD_RUN_URL}/webhook/fetch_bulk_messages.php`;
       console.log('Proxying fetch_bulk_messages to:', cloudRunUrl);
 
       const response = await fetch(cloudRunUrl, {
