@@ -539,6 +539,8 @@ const CreditsSection: React.FC = () => {
     const PACKAGES = [
         { credits: 1, price: 1 },
         { credits: 500, price: 250 },
+        { credits: 1000, price: 450 },
+        { credits: 2500, price: 1000 },
     ];
 
     const handleTopUp = (e: React.FormEvent) => {
