@@ -1,4 +1,4 @@
-import type { SmsLog, BulkMessageHistoryItem } from "../types/Sms";
+import type { SmsLog, BulkMessageHistoryItem, FirestoreMessage, Conversation } from "../types/Sms";
 
 const WEBHOOK_URL = "/api/messages";
 const WEBHOOK_SECRET = "f7RkQ2pL9zV3tX8cB1nS4yW6";
@@ -202,6 +202,51 @@ export const fetchBatchMessages = async (batchId: string): Promise<SmsLog[]> => 
     return data.data || [];
   } catch (error) {
     console.error("Fetch Batch Error:", error);
+    return [];
+  }
+};
+
+/**
+ * Fetch messages for a single conversation (direct or bulk) by conversation_id.
+ * This is the primary way to load chat history – avoids bulk mixing.
+ * Direct:  conversation_id = conv_09XXXXXXXXX
+ * Bulk:    conversation_id = group_batch_xxx
+ */
+export const fetchMessagesByConversationId = async (
+  conversationId: string,
+  limit = 100
+): Promise<FirestoreMessage[]> => {
+  if (!conversationId) return [];
+
+  try {
+    const res = await fetch(
+      `${WEBHOOK_URL}?conversation_id=${encodeURIComponent(conversationId)}&limit=${limit}`,
+      { headers: { 'X-Webhook-Secret': WEBHOOK_SECRET } }
+    );
+    if (!res.ok) throw new Error(`Failed to fetch conversation messages: ${res.status}`);
+    const data = await res.json();
+    return (data.data || []) as FirestoreMessage[];
+  } catch (error) {
+    console.error('[fetchMessagesByConversationId] Error:', error);
+    return [];
+  }
+};
+
+/**
+ * Fetch all conversation metadata from the `conversations` Firestore collection.
+ * Used by Sidebar to build the direct/bulk message list from server state.
+ */
+export const fetchConversations = async (): Promise<Conversation[]> => {
+  try {
+    const res = await fetch(`${WEBHOOK_URL}?action=fetch_conversations`, {
+      headers: { 'X-Webhook-Secret': WEBHOOK_SECRET },
+    });
+    if (!res.ok) throw new Error(`Failed to fetch conversations: ${res.status}`);
+    const data = await res.json();
+    // Data may be { data: [...] } or a plain array
+    return (Array.isArray(data) ? data : data.data || []) as Conversation[];
+  } catch (error) {
+    console.error('[fetchConversations] Error:', error);
     return [];
   }
 };

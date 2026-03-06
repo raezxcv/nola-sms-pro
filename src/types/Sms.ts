@@ -5,6 +5,31 @@ export interface SmsStats {
   lastSentAt: string;
 }
 
+/** One row from the `messages` Firestore collection */
+export interface FirestoreMessage {
+  id: string;
+  conversation_id: string;
+  number: string;
+  message: string;
+  direction: 'inbound' | 'outbound';
+  sender_id: string;
+  status: string;
+  batch_id?: string;
+  created_at: string | { _seconds: number; _nanoseconds: number } | null;
+  name?: string;
+}
+
+/** One row from the `conversations` Firestore collection */
+export interface Conversation {
+  id: string;             // e.g. conv_09XXXXXXXXX  |  group_batch_xxx
+  type: 'direct' | 'bulk';
+  members: string[];      // normalised phone numbers
+  last_message: string;
+  last_message_at: string | null;
+  name: string;
+  updated_at: string | null;
+}
+
 export interface BulkMessageHistoryItem {
   id: string;
   message: string;

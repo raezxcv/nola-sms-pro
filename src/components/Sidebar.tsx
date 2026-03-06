@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback, useRef } from "react";
 import { fetchContacts } from "../api/contacts";
-import { fetchAllBulkMessages } from "../api/sms";
+import { fetchAllBulkMessages, fetchConversations } from "../api/sms";
 import type { Contact } from "../types/Contact";
 import type { BulkMessageHistoryItem } from "../types/Sms";
 import { getBulkMessageHistory, renameBulkMessage, deleteBulkMessage, deleteContact, getDeletedContactIds } from "../utils/storage";
@@ -49,36 +49,59 @@ export const Sidebar: React.FC<SidebarProps> = ({
       const deletedIds = getDeletedContactIds();
       const filtered = data.filter(c => !deletedIds.includes(c.id));
       setContacts(filtered);
-      
-      // Also load bulk messages from database
+
+      // Load bulk messages: try Firestore conversations first, fall back to sms_logs bulk endpoint
       try {
-        const dbBulkMessages = await fetchAllBulkMessages();
-        const localBulkMessages = getBulkMessageHistory();
-        
-        // Merge: prefer database messages (they have accurate batch info)
-        // Use a map to combine by batch_id
-        const mergedBulk = new Map();
-        
-        // Add local messages first
-        localBulkMessages.forEach(msg => {
+        const mergedBulk = new Map<string, BulkMessageHistoryItem>();
+
+        // 1. Local storage (lowest priority – user renames/deletions tracked here)
+        getBulkMessageHistory().forEach(msg => {
           const key = msg.batchId || msg.id;
           mergedBulk.set(key, msg);
         });
-        
-        // Override with database messages (they're more accurate)
-        dbBulkMessages.forEach(msg => {
-          const key = msg.batchId || msg.id;
-          mergedBulk.set(key, msg);
-        });
-        
-        // Convert to array and sort by timestamp
+
+        // 2. Old sms_logs-based bulk endpoint (fallback)
+        try {
+          const dbBulkMessages = await fetchAllBulkMessages();
+          dbBulkMessages.forEach(msg => {
+            const key = msg.batchId || msg.id;
+            // Only override if not already in local storage (local keeps custom names)
+            if (!mergedBulk.has(key)) mergedBulk.set(key, msg);
+          });
+        } catch { /* ignore */ }
+
+        // 3. New conversations collection (highest priority for server truth)
+        try {
+          const conversations = await fetchConversations();
+          conversations
+            .filter(c => c.type === 'bulk')
+            .forEach(conv => {
+              // conversation id format: group_batch_xxx  → batchId = batch_xxx
+              const batchId = conv.id.replace(/^group_/, '');
+              const key = batchId;
+              const existing = mergedBulk.get(key);
+              const item: BulkMessageHistoryItem = {
+                id: existing?.id || `bulk-db-${batchId}`,
+                message: conv.last_message || existing?.message || '',
+                recipientCount: conv.members.length,
+                recipientNames: existing?.recipientNames,
+                recipientNumbers: conv.members,
+                recipientKey: existing?.recipientKey || batchId,
+                customName: existing?.customName,
+                timestamp: conv.last_message_at || conv.updated_at || existing?.timestamp || new Date().toISOString(),
+                status: existing?.status || 'sent',
+                batchId,
+                fromDatabase: true,
+              };
+              mergedBulk.set(key, item);
+            });
+        } catch { /* conversations endpoint not yet deployed – silently ignore */ }
+
         const combined = Array.from(mergedBulk.values())
           .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
-        
         setBulkHistory(combined);
       } catch (bulkErr) {
-        console.error('Error loading bulk messages from DB:', bulkErr);
-        // Fall back to local
+        console.error('Error loading bulk messages:', bulkErr);
         setBulkHistory(getBulkMessageHistory());
       }
     } catch (e) {

@@ -18,14 +18,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   try {
     // Route based on action parameter
     const action = req.query.action as string;
-    const batch_id = req.query.batch_id as string;
-    const recipient_key = req.query.recipient_key as string;
-    
+
     if (action === 'fetch_bulk_messages') {
       // Fetch all bulk messages from Firestore
       const cloudRunUrl = `${CLOUD_RUN_URL}/webhook/fetch_bulk_messages`;
       console.log('Proxying fetch_bulk_messages to:', cloudRunUrl);
-      
+
       const response = await fetch(cloudRunUrl, {
         method: 'GET',
         headers: {
@@ -37,28 +35,37 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       const data = await response.json();
       return res.status(response.status).json(data);
     }
-    
+
+    if (action === 'fetch_conversations') {
+      // Fetch all conversations from Firestore
+      const cloudRunUrl = `${CLOUD_RUN_URL}/api/conversations`;
+      console.log('Proxying fetch_conversations to:', cloudRunUrl);
+
+      const response = await fetch(cloudRunUrl, {
+        method: 'GET',
+        headers: {
+          'X-Webhook-Secret': WEBHOOK_SECRET,
+          'Content-Type': 'application/json',
+        },
+      });
+
+      const data = await response.json();
+      return res.status(response.status).json(data);
+    }
+
     // Route based on method
     if (req.method === 'GET') {
-      // GET /api/messages - fetch messages
+      // GET /api/messages - fetch messages, forwarding all query params as-is
       const queryParams = new URLSearchParams();
       for (const [key, value] of Object.entries(req.query)) {
-        if (value) {
+        if (value && key !== 'action') {
           queryParams.append(key, Array.isArray(value) ? value[0] : value);
         }
       }
-      
-      // Forward batch_id OR recipient_key to Cloud Run
-      let cloudRunUrl = `${CLOUD_RUN_URL}/api/messages?${queryParams.toString()}`;
-      
-      // If no specific filter provided, add default filters
-      if (!batch_id && !recipient_key && !req.query.number) {
-        // Get outbound messages only
-        cloudRunUrl = `${CLOUD_RUN_URL}/api/messages?direction=outbound&${queryParams.toString()}`;
-      }
-      
+
+      const cloudRunUrl = `${CLOUD_RUN_URL}/api/messages?${queryParams.toString()}`;
       console.log('Proxying GET to:', cloudRunUrl);
-      
+
       const response = await fetch(cloudRunUrl, {
         method: 'GET',
         headers: {
@@ -75,7 +82,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       const cloudRunUrl = `${CLOUD_RUN_URL}/webhook/send_sms`;
       console.log('Proxying POST to:', cloudRunUrl);
       console.log('Request body:', req.body);
-      
+
       const response = await fetch(cloudRunUrl, {
         method: 'POST',
         headers: {

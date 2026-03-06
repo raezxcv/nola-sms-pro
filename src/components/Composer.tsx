@@ -8,8 +8,7 @@ import type { Contact } from "../types/Contact";
 import { FiUser, FiUsers, FiMenu } from "react-icons/fi";
 import ShinyText from "./ShinyText";
 import { DotLottieReact } from "@lottiefiles/dotlottie-react";
-import { useMessages } from "../hooks/useMessages";
-import { useGroupMessages } from "../hooks/useGroupMessages";
+import { useConversationMessages } from "../hooks/useConversationMessages";
 import { SenderSelector } from "./SenderSelector";
 import { CreditBadge } from "./CreditBadge";
 import { FiCheck, FiAlertCircle, FiLoader } from "react-icons/fi";
@@ -102,33 +101,36 @@ export const Composer: React.FC<ComposerProps> = ({
     return undefined;
   }, [activeContact, selectedContacts]);
 
-  const { messages: singleMessages, loading: singleLoading, addOptimisticMessage, updateMessageStatus, refresh: refreshSingle } = useMessages(activePhoneNumber);
-
-  const recipientKey = useMemo(() => {
-    // If we have an active bulk message from sidebar, use its recipientKey
-    if (activeBulkMessage?.recipientKey) {
-      return activeBulkMessage.recipientKey;
+  /**
+   * Stable conversation_id for message fetching:
+   *  - Direct chat:             conv_{phone}
+   *  - Existing bulk from sidebar: group_{batchId}  (batchId already contains "batch_" prefix from server)
+   *  - New bulk in progress:    undefined (messages will appear after navigation to activeBulkMessage)
+   */
+  const conversationId = useMemo(() => {
+    if (activePhoneNumber) {
+      // Normalise to 09XXXXXXXXX before building the key
+      const digits = activePhoneNumber.replace(/\D/g, "");
+      let normalized = activePhoneNumber;
+      if (digits.startsWith("09") && digits.length === 11) normalized = digits;
+      else if (digits.startsWith("9") && digits.length === 10) normalized = "0" + digits;
+      else if (digits.startsWith("639") && digits.length === 12) normalized = "0" + digits.substring(2);
+      return `conv_${normalized}`;
     }
-    // Otherwise compute from selected contacts
-    if (composeMode === 'bulk' && bulkSelectedContacts.length > 1) {
-      return getRecipientKey(bulkSelectedContacts.map(c => c.phone));
+    if (activeBulkMessage?.batchId) {
+      // batchId from backend is e.g. "batch_abc123" → conversationId = "group_batch_abc123"
+      return `group_${activeBulkMessage.batchId}`;
     }
     return undefined;
-  }, [composeMode, bulkSelectedContacts, activeBulkMessage]);
+  }, [activePhoneNumber, activeBulkMessage]);
 
-  const recipientNumbers = useMemo(() => {
-    // If we have an active bulk message from sidebar, use its numbers
-    if (activeBulkMessage?.recipientNumbers) {
-      return activeBulkMessage.recipientNumbers;
-    }
-    return bulkSelectedContacts.map(c => c.phone);
-  }, [bulkSelectedContacts, activeBulkMessage]);
-
-  const { messages: groupMessages, loading: groupLoading, refresh: refreshGroup } = useGroupMessages(recipientKey, recipientNumbers, activeBulkMessage?.batchId);
-
-  const messages = (composeMode === 'bulk' && (bulkSelectedContacts.length > 1 || activeBulkMessage)) ? groupMessages : (singleMessages as any[]);
-  const historyLoading = (composeMode === 'bulk' && (bulkSelectedContacts.length > 1 || activeBulkMessage)) ? groupLoading : singleLoading;
-  const refresh = (composeMode === 'bulk' && (bulkSelectedContacts.length > 1 || activeBulkMessage)) ? refreshGroup : refreshSingle;
+  const {
+    messages,
+    loading: historyLoading,
+    addOptimisticMessage,
+    updateMessageStatus,
+    refresh,
+  } = useConversationMessages(conversationId);
 
   const dropdownRef = useRef<HTMLDivElement>(null);
 
@@ -340,7 +342,7 @@ export const Composer: React.FC<ComposerProps> = ({
     try {
       // Check if we're viewing an existing bulk message conversation
       const isExistingBulkConversation = activeBulkMessage && recipients.length > 1;
-      
+
       if (recipients.length === 1 || isExistingBulkConversation) {
         // Single message or appending to existing bulk conversation
         if (recipients.length === 1) {
@@ -375,7 +377,7 @@ export const Composer: React.FC<ComposerProps> = ({
           const phones = recipients.map(c => c.phone);
           const recipientKey = activeBulkMessage?.recipientKey || getRecipientKey(phones);
           const batchId = activeBulkMessage?.batchId; // Use existing batchId to keep in same conversation
-          
+
           // Send bulk SMS - if we have an existing batchId, it will add to that conversation
           const { results } = await sendBulkSms(phones, messageText, senderName, recipients, recipientKey, batchId);
           const successCount = results.filter(r => r.success).length;
@@ -383,9 +385,9 @@ export const Composer: React.FC<ComposerProps> = ({
           if (successCount > 0) {
             setToastSeverity("success");
             setToastMessage(`Sent ${successCount} of ${recipients.length} messages`);
-            
+
             // Refresh to show new messages in the conversation
-            setTimeout(() => refreshGroup(), 2000);
+            setTimeout(() => refresh(), 2000);
           } else {
             setToastSeverity("error");
             setToastMessage("Failed to send bulk messages");
@@ -422,9 +424,9 @@ export const Composer: React.FC<ComposerProps> = ({
           if (onSelectBulkMessage) {
             onSelectBulkMessage(bulkItem);
           }
-          
-          // Then refresh group messages after navigation to fetch from Firestore
-          setTimeout(() => refreshGroup(), 2000);
+
+          // Refresh after navigation to fetch from Firestore
+          setTimeout(() => refresh(), 2000);
         } else {
           setToastSeverity("error");
           setToastMessage("Failed to send bulk messages");
@@ -547,8 +549,8 @@ export const Composer: React.FC<ComposerProps> = ({
               </div>
               <div className="flex flex-col min-w-0">
                 <h2 className="text-[15px] sm:text-[17px] font-bold text-[#111111] dark:text-[#ececf1] leading-tight tracking-tight truncate">
-                  {activeBulkMessage.customName || 
-                    (activeBulkMessage.recipientNames && activeBulkMessage.recipientNames.length > 0 
+                  {activeBulkMessage.customName ||
+                    (activeBulkMessage.recipientNames && activeBulkMessage.recipientNames.length > 0
                       ? activeBulkMessage.recipientNames.slice(0, 2).join(', ') + (activeBulkMessage.recipientNames.length > 2 ? ` +${activeBulkMessage.recipientNames.length - 2}` : '')
                       : `${activeBulkMessage.recipientCount} recipients`)}
                 </h2>
@@ -587,8 +589,8 @@ export const Composer: React.FC<ComposerProps> = ({
 
                 {/* Circular Avatar - Blue for new message, Purple for bulk */}
                 <div className={`w-10 h-10 sm:w-11 sm:h-11 rounded-full flex-shrink-0 flex items-center justify-center text-white font-bold text-base shadow-md 
-                  ${activeBulkMessage 
-                    ? 'bg-gradient-to-br from-[#7c3aed] to-[#a78bfa] shadow-purple-500/20' 
+                  ${activeBulkMessage
+                    ? 'bg-gradient-to-br from-[#7c3aed] to-[#a78bfa] shadow-purple-500/20'
                     : 'bg-gradient-to-br from-[#2b83fa] to-[#60a5fa] shadow-blue-500/20'}`}>
                   {activeBulkMessage ? (
                     <FiUsers className="h-5 w-5" />
