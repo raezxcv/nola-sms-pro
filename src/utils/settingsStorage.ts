@@ -15,6 +15,7 @@ export interface AccountSettings {
     accountStatus: "approved" | "pending" | "rejected";
     creditBalance: number;
     ghlLocationId: string;
+    ghlOAuthConnected?: boolean;
 }
 
 export interface APISettings {
@@ -48,6 +49,7 @@ const DEFAULT_ACCOUNT: AccountSettings = {
     accountStatus: "approved",
     creditBalance: 500,
     ghlLocationId: "",
+    ghlOAuthConnected: false,
 };
 
 const DEFAULT_API: APISettings = {

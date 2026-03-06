@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { Dashboard } from "./pages/Dashboard";
 import { useGhlLocation } from "./hooks/useGhlLocation";
+import { GhlCallback } from "./pages/GhlCallback";
 
 const App: React.FC = () => {
   // Initialize GHL Location detection at root level so it captures the URL immediately
@@ -53,12 +54,17 @@ const App: React.FC = () => {
         )}
       </button>
 
-      <Dashboard
-        isMobileMenuOpen={isMobileMenuOpen}
-        onMobileMenuToggle={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-        darkMode={darkMode}
-        toggleDarkMode={toggleDarkMode}
-      />
+      {/* Basic Routing: if the URL has ?code= from GoHighLevel, render the callback component */}
+      {window.location.search.includes('code=') ? (
+        <GhlCallback />
+      ) : (
+        <Dashboard
+          isMobileMenuOpen={isMobileMenuOpen}
+          onMobileMenuToggle={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+          darkMode={darkMode}
+          toggleDarkMode={toggleDarkMode}
+        />
+      )}
     </div>
   );
 };

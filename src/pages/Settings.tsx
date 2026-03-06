@@ -158,6 +158,14 @@ const AccountSection: React.FC = () => {
         setTimeout(() => setSaved(false), 2000);
     };
 
+    const handleConnectGhl = () => {
+        const clientId = "69aa6cc3412b25467476d5de-mmehrtt9";
+        const redirectUri = window.location.origin + window.location.pathname;
+        const scopes = "contacts.readonly contacts.write conversations.readonly conversations/message.readonly conversations/message.write locations.readonly";
+        const authUrl = `https://marketplace.gohighlevel.com/oauth/chooselocation?response_type=code&redirect_uri=${encodeURIComponent(redirectUri)}&client_id=${clientId}&scope=${encodeURIComponent(scopes)}`;
+        window.location.href = authUrl;
+    };
+
     const statusCfg = STATUS_CONFIG[form.accountStatus];
 
     return (
@@ -190,29 +198,51 @@ const AccountSection: React.FC = () => {
 
             <Card>
                 <div className="flex items-center justify-between mb-4">
-                    <h3 className="text-[13px] font-bold text-[#37352f] dark:text-[#ececf1] uppercase tracking-wider">GHL Integration</h3>
-                    {form.ghlLocationId && (
+                    <h3 className="text-[13px] font-bold text-[#37352f] dark:text-[#ececf1] uppercase tracking-wider">GHL Integration & API</h3>
+                    {form.ghlOAuthConnected ? (
                         <span className="inline-flex items-center gap-1.5 px-2.5 py-1 text-[11px] font-semibold rounded-full bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 dark:text-emerald-400">
-                            <FiCheck className="w-3.5 h-3.5" /> Verified
+                            <FiCheck className="w-3.5 h-3.5" /> API Connected
                         </span>
-                    )}
+                    ) : form.ghlLocationId ? (
+                        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 text-[11px] font-semibold rounded-full bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400">
+                            <FiBriefcase className="w-3.5 h-3.5" /> App Installed
+                        </span>
+                    ) : null}
                 </div>
-                {form.ghlLocationId ? (
+
+                {form.ghlLocationId && form.ghlOAuthConnected ? (
                     <div className="flex items-center gap-3 p-3 rounded-xl bg-[#f7f7f7] dark:bg-[#0d0e10] border border-[#e0e0e0] dark:border-[#ffffff0a]">
-                        <div className="w-10 h-10 rounded-xl bg-[#2b83fa]/10 flex items-center justify-center text-[#2b83fa]">
-                            <FiBriefcase className="w-5 h-5" />
+                        <div className="w-10 h-10 rounded-xl bg-emerald-500/10 flex items-center justify-center text-emerald-500">
+                            <FiCheckCircle className="w-5 h-5" />
                         </div>
                         <div>
-                            <p className="text-[13px] font-semibold text-[#111111] dark:text-[#ececf1]">Connected Subaccount</p>
-                            <p className="text-[12px] font-mono text-[#9aa0a6] mt-0.5">{form.ghlLocationId}</p>
+                            <p className="text-[13px] font-semibold text-[#111111] dark:text-[#ececf1]">Successfully Connected to GoHighLevel</p>
+                            <p className="text-[12px] font-mono text-[#9aa0a6] mt-0.5">Location: {form.ghlLocationId}</p>
                         </div>
+                    </div>
+                ) : form.ghlLocationId && !form.ghlOAuthConnected ? (
+                    <div className="space-y-4">
+                        <div className="flex items-center gap-3 p-3 rounded-xl bg-amber-50 dark:bg-amber-900/10 border border-amber-200 dark:border-amber-800/30">
+                            <FiAlertCircle className="w-5 h-5 text-amber-600 dark:text-amber-400 flex-shrink-0" />
+                            <div>
+                                <p className="text-[13px] font-semibold text-amber-800 dark:text-amber-300">API Authorization Required</p>
+                                <p className="text-[12px] text-amber-700 dark:text-amber-400 mt-0.5">The app is installed (Location: {form.ghlLocationId}), but it needs API access to read contacts and conversations.</p>
+                            </div>
+                        </div>
+                        <button
+                            onClick={handleConnectGhl}
+                            type="button"
+                            className="w-full flex items-center justify-center gap-2 py-2.5 bg-[#2b83fa] hover:bg-[#1d6bd4] text-white rounded-xl font-semibold text-[13px] transition-colors shadow-sm"
+                        >
+                            <FiGlobe className="w-4 h-4" /> Connect API with GoHighLevel
+                        </button>
                     </div>
                 ) : (
                     <div className="flex items-center gap-3 p-3 rounded-xl bg-amber-50 dark:bg-amber-900/10 border border-amber-200 dark:border-amber-800/30">
                         <FiAlertCircle className="w-5 h-5 text-amber-600 dark:text-amber-400 flex-shrink-0" />
                         <div>
-                            <p className="text-[13px] font-semibold text-amber-800 dark:text-amber-300">Not Connected</p>
-                            <p className="text-[12px] text-amber-700 dark:text-amber-400 mt-0.5">Please open this app from within GoHighLevel to automatically verify your Location ID.</p>
+                            <p className="text-[13px] font-semibold text-amber-800 dark:text-amber-300">Not Installed</p>
+                            <p className="text-[12px] text-amber-700 dark:text-amber-400 mt-0.5">Please open this app from within GoHighLevel initially to detect your Location ID.</p>
                         </div>
                     </div>
                 )}
