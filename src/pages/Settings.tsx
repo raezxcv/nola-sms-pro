@@ -159,7 +159,7 @@ const AccountSection: React.FC = () => {
     };
 
     const handleConnectGhl = () => {
-        const clientId = "69aa6cc3412b25467476d5de-mmehrtt9";
+        const clientId = "6999da2b8f278296d95f7274-mm9wv85e";
         const redirectUri = window.location.origin + window.location.pathname;
         const scopes = "contacts.readonly contacts.write conversations.readonly conversations/message.readonly conversations/message.write locations.readonly";
         const authUrl = `https://marketplace.gohighlevel.com/oauth/chooselocation?response_type=code&redirect_uri=${encodeURIComponent(redirectUri)}&client_id=${clientId}&scope=${encodeURIComponent(scopes)}`;

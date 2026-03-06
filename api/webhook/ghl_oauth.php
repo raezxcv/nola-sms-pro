@@ -31,8 +31,8 @@ $code = $payload['code'];
 $redirectUri = $payload['redirectUri'] ?? '';
 
 // User Provided Credentials
-$clientId = '69aa6cc3412b25467476d5de-mmehrtt9';
-$clientSecret = 'e385d51b-c4fa-4a60-a23b-1b02fc84f991';
+$clientId = '6999da2b8f278296d95f7274-mm9wv85e';
+$clientSecret = 'dfc4380f-6132-49b3-8246-92e14f55ee78';
 
 $postData = http_build_query([
     'client_id' => $clientId,
