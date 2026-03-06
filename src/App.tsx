@@ -1,7 +1,11 @@
 import React, { useState, useEffect } from "react";
 import { Dashboard } from "./pages/Dashboard";
+import { useGhlLocation } from "./hooks/useGhlLocation";
 
 const App: React.FC = () => {
+  // Initialize GHL Location detection at root level so it captures the URL immediately
+  useGhlLocation();
+
   const [darkMode, setDarkMode] = useState(() => {
     const saved = localStorage.getItem('darkMode');
     if (saved !== null) {
@@ -49,8 +53,8 @@ const App: React.FC = () => {
         )}
       </button>
 
-      <Dashboard 
-        isMobileMenuOpen={isMobileMenuOpen} 
+      <Dashboard
+        isMobileMenuOpen={isMobileMenuOpen}
         onMobileMenuToggle={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
         darkMode={darkMode}
         toggleDarkMode={toggleDarkMode}
