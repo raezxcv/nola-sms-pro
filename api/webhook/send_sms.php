@@ -5,14 +5,21 @@ ini_set('display_startup_errors', 0);
 error_reporting(E_ALL);
 
 header('Content-Type: application/json');
+header('Access-Control-Allow-Origin: *');
+header('Access-Control-Allow-Methods: GET, POST, OPTIONS');
+header('Access-Control-Allow-Headers: X-Webhook-Secret, Content-Type');
 
+if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
+    http_response_code(200);
+    exit;
+}
 $config = require __DIR__ . '/config.php';
 require __DIR__ . '/firestore_client.php';
 require __DIR__ . '/../auth_helpers.php';
 
 $SEMAPHORE_API_KEY = $config['SEMAPHORE_API_KEY'];
-$SEMAPHORE_URL     = $config['SEMAPHORE_URL'];
-$SENDER_IDS        = $config['SENDER_IDS'];
+$SEMAPHORE_URL = $config['SEMAPHORE_URL'];
+$SENDER_IDS = $config['SENDER_IDS'];
 
 validate_api_request();
 
@@ -36,7 +43,8 @@ function clean_numbers($numberString)
     foreach ($numbers as $num) {
         $num = trim((string)$num);
         $num = preg_replace('/[\s\-\.\(\)]/', '', $num);
-        if ($num === '') continue;
+        if ($num === '')
+            continue;
 
         if (substr($num, 0, 3) === '+63') {
             $num = '0' . substr($num, 3);
