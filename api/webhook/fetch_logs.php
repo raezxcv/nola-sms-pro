@@ -1,4 +1,16 @@
 <?php
+// CORS Headers
+header('Access-Control-Allow-Origin: *');
+header('Access-Control-Allow-Methods: GET, POST, OPTIONS');
+header('Access-Control-Allow-Headers: X-Webhook-Secret, Content-Type');
+header('Access-Control-Max-Age: 86400');
+
+// Handle OPTIONS preflight request
+if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
+    http_response_code(204);
+    exit;
+}
+
 header('Content-Type: application/json');
 
 // Enable error reporting for debugging (disable in production)
