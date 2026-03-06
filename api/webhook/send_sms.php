@@ -4,15 +4,20 @@ ini_set('display_errors', 0);
 ini_set('display_startup_errors', 0);
 error_reporting(E_ALL);
 
-header('Content-Type: application/json');
-header('Access-Control-Allow-Origin: *');
+// CORS Headers + Preflight
+$origin = $_SERVER['HTTP_ORIGIN'] ?? '*';
+header('Access-Control-Allow-Origin: ' . $origin);
 header('Access-Control-Allow-Methods: GET, POST, OPTIONS');
 header('Access-Control-Allow-Headers: X-Webhook-Secret, Content-Type');
+header('Access-Control-Max-Age: 86400');
 
-if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
-    http_response_code(200);
+// Handle OPTIONS preflight request
+if (($_SERVER['REQUEST_METHOD'] ?? '') === 'OPTIONS') {
+    http_response_code(204);
     exit;
 }
+
+header('Content-Type: application/json');
 
 $config = require __DIR__ . '/config.php';
 require __DIR__ . '/firestore_client.php';
@@ -106,11 +111,13 @@ log_full_payload($raw, $payload);
 $customData = $payload['customData'] ?? [];
 $data = $payload['data'] ?? [];
 
+$batch_id = $customData['batch_id'] ?? $data['batch_id'] ?? null;
+$recipient_key = $customData['recipient_key'] ?? $data['recipient_key'] ?? null;
+
 $message = $customData['message'] ?? $payload['message'] ?? $data['message'] ?? '';
+
 if ($message) {
-    if (strpos($message, '<') !== false) {
-        $message = strip_tags($message);
-    }
+    $message = strip_tags($message);
     $message = html_entity_decode($message);
     $message = preg_replace('/\s+/', ' ', $message);
     $message = trim($message);
@@ -118,9 +125,6 @@ if ($message) {
 log_sms("MESSAGE_CLEANED", $message);
 
 $sender = $customData['sendername'] ?? $payload['sendername'] ?? $data['sendername'] ?? ($SENDER_IDS[0] ?? "");
-$batch_id = $customData['batch_id'] ?? null;
-$contact_name = $customData['name'] ?? ($payload['contact']['name'] ?? null);
-$recipient_key = $customData['recipient_key'] ?? null;
 
 /* |-------------------------------------------------------------------------- | EXTRACT PHONE NUMBER |-------------------------------------------------------------------------- */
 $number_input = $customData['number'] ?? $customData['phone'] ?? $payload['number'] ?? $payload['phone'] ?? $payload['phoneNumber'] ?? ($data['phone'] ?? ($data['Phone'] ?? ($data['number'] ?? ($data['mobile'] ?? ($payload['contact']['phone'] ?? ($payload['contact']['phoneNumber'] ?? ($payload['contact']['mobile'] ?? null)))))));
@@ -137,6 +141,12 @@ if (!$message) {
     echo json_encode(["status" => "error", "message" => "Message empty"]);
     exit;
 }
+
+// Auto batch id for bulk sends if not provided
+if (!$batch_id && count($validNumbers) > 1) {
+    $batch_id = 'batch_' . bin2hex(random_bytes(8));
+}
+
 if (!in_array($sender, $SENDER_IDS)) {
     $sender = $SENDER_IDS[0];
 }
@@ -166,66 +176,51 @@ if ($status == 200 && is_array($result)) {
     $db = get_firestore();
     $now = new \DateTime();
     $ts = new \Google\Cloud\Core\Timestamp($now);
+    $messages = isset($result[0]) ? $result : [$result];
 
-    // Support both array response and single message object response
-    $messages_results = isset($result[0]) ? $result : [$result];
+    $isBulk = count($validNumbers) > 1 || !empty($batch_id);
+    $conversation_id = $isBulk
+        ? ('group_' . ($batch_id ?? 'bulk'))
+        : ('conv_' . $validNumbers[0]);
 
-    foreach ($messages_results as $index => $msg) {
+    foreach ($messages as $msg) {
         if (!isset($msg['message_id']))
             continue;
 
-        // Track specific recipient for each message in the response if multiple
-        $recipient = $msg['number'] ?? ($validNumbers[$index] ?? $validNumbers[0]);
+        $recipientRaw = $msg['number'] ?? $msg['recipient'] ?? $msg['to'] ?? null;
+        $recipientArr = $recipientRaw ? clean_numbers($recipientRaw) : [];
+        $recipient = $recipientArr[0] ?? $validNumbers[0];
 
         $db->collection('messages')
             ->document($msg['message_id'])
             ->set([
+            'conversation_id' => $conversation_id,
             'number' => $recipient,
-            'numbers' => [$recipient],
             'message' => $message,
             'sender_id' => $sender,
             'direction' => 'outbound',
             'status' => $msg['status'] ?? 'sent',
-            'date_created' => $ts, // Standardized key name
             'batch_id' => $batch_id,
-            'name' => $contact_name,
-            'recipient_key' => $recipient_key,
-            'source' => 'api'
-        ], ['merge' => true]);
-
-        // Also save to legacy sms_logs for backward compatibility
-        $db->collection('sms_logs')
-            ->document($msg['message_id'])
-            ->set([
-            'number' => $recipient,
-            'message' => $message,
-            'sender_id' => $sender,
-            'direction' => 'outbound',
-            'status' => $msg['status'] ?? 'sent',
+            'recipient_key' => $recipient_key ?? $recipient,
+            'created_at' => $ts,
             'date_created' => $ts,
-            'batch_id' => $batch_id,
-            'recipient_key' => $recipient_key
-        ], ['merge' => true]);
-
-        // 3. Update Conversation Summary for Sidebar
-        $conv_id = $batch_id ? "group_$batch_id" : "conv_$recipient";
-        $conv_type = $batch_id ? "bulk" : "direct";
-
-        $db->collection('conversations')
-            ->document($conv_id)
-            ->set([
-            'id' => $conv_id,
-            'type' => $conv_type,
-            'members' => $batch_id ? $validNumbers : [$recipient],
-            'last_message' => $message,
-            'last_message_at' => $ts,
-            'updated_at' => $ts,
-            'name' => $batch_id ? ($contact_name ?? "Bulk Campaign") : ($contact_name ?? $recipient),
         ], ['merge' => true]);
     }
+
+    // Conversation doc for UI sidebar
+    $db->collection('conversations')
+        ->document($conversation_id)
+        ->set([
+        'id' => $conversation_id,
+        'type' => $isBulk ? 'bulk' : 'direct',
+        'members' => $validNumbers,
+        'last_message' => $message,
+        'last_message_at' => $ts,
+        'name' => $isBulk ? ($customData['campaign_name'] ?? $batch_id ?? 'Bulk') : ($customData['name'] ?? $validNumbers[0]),
+        'updated_at' => $ts,
+    ], ['merge' => true]);
 }
 
-/* |-------------------------------------------------------------------------- | RESPONSE |-------------------------------------------------------------------------- */
 echo json_encode([
     "status" => $status == 200 ? "success" : "failed",
     "numbers" => $validNumbers,
