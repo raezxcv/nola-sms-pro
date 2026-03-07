@@ -537,10 +537,10 @@ const CreditsSection: React.FC = () => {
     const [submitted, setSubmitted] = useState(false);
 
     const PACKAGES = [
-        { credits: 1, price: 1 },
-        { credits: 500, price: 250 },
-        { credits: 1000, price: 450 },
-        { credits: 2500, price: 1000 },
+        { credits: 500, price: 500 },
+        { credits: 1100, price: 1000 },
+        { credits: 2750, price: 2500 },
+        { credits: 6000, price: 5000 },
     ];
 
     const handleTopUp = (e: React.FormEvent) => {
