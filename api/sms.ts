@@ -54,10 +54,14 @@ export default async function handler(
     const errorText = !webhookResponse.ok ? await webhookResponse.text().catch(() => 'No body') : '';
     if (!webhookResponse.ok) {
       console.error('Backend SMS Error:', webhookResponse.status, errorText);
+      let parsedError = {};
+      try { parsedError = JSON.parse(errorText); } catch { }
+
       return res.status(webhookResponse.status).json({
         status: 'error',
         message: 'Backend rejected SMS',
-        details: errorText.substring(0, 200)
+        details: errorText.substring(0, 500),
+        ...(typeof parsedError === 'object' ? parsedError : {})
       });
     }
 

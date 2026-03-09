@@ -35,7 +35,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         }
 
         const data = await response.json();
-        return res.status(200).json(data);
+
+        // Map credit_balance (backend) to balance (frontend)
+        return res.status(200).json({
+            ...data,
+            balance: data.credit_balance ?? 0
+        });
     } catch (error) {
         console.error('Balance Proxy Internal Error:', error);
         return res.status(200).json({ balance: 0, error: 'Internal proxy error' });
