@@ -8,6 +8,7 @@ import { ContactsTab } from "../components/ContactsTab";
 import { Settings } from "./Settings";
 import { TbLayoutSidebarRightCollapse } from "react-icons/tb";
 import { FiMenu } from "react-icons/fi";
+import { Home } from "../components/Home";
 
 interface DashboardProps {
   isMobileMenuOpen?: boolean;
@@ -37,7 +38,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ isMobileMenuOpen: external
     } catch { return []; }
   });
   const [currentView, setCurrentView] = useState<ViewTab>(
-    () => (localStorage.getItem('nola_active_tab') as ViewTab) || 'compose'
+    () => (localStorage.getItem('nola_active_tab') as ViewTab) || 'home'
   );
   const [settingsTab, setSettingsTab] = useState<"account" | "senderIds" | "api" | "notifications" | "credits" | undefined>(undefined);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
@@ -199,7 +200,13 @@ export const Dashboard: React.FC<DashboardProps> = ({ isMobileMenuOpen: external
 
         {/* Content Router */}
         <div className="flex-1 h-full overflow-hidden">
-          {currentView === 'compose' ? (
+          {currentView === 'home' ? (
+            <Home
+              onTabChange={handleTabChange}
+              onSelectContact={handleSelectContact}
+              onSelectBulkMessage={handleSelectBulkMessage}
+            />
+          ) : currentView === 'compose' ? (
             <Composer
               selectedContacts={selectedContacts}
               activeContact={activeContact}
@@ -237,12 +244,14 @@ export const Dashboard: React.FC<DashboardProps> = ({ isMobileMenuOpen: external
       </div>
 
       {/* Mobile Overlay */}
-      {isMobileMenuOpen && (
-        <div
-          className="fixed inset-0 bg-black/40 backdrop-blur-sm z-[45] md:hidden transition-opacity"
-          onClick={toggleMobileMenu}
-        />
-      )}
-    </div>
+      {
+        isMobileMenuOpen && (
+          <div
+            className="fixed inset-0 bg-black/40 backdrop-blur-sm z-[45] md:hidden transition-opacity"
+            onClick={toggleMobileMenu}
+          />
+        )
+      }
+    </div >
   );
 };

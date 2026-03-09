@@ -1,0 +1,261 @@
+import { useState, useEffect } from "react";
+import { FiHome, FiPlus, FiUsers, FiSettings, FiCreditCard, FiMessageSquare, FiArrowRight, FiClock } from "react-icons/fi";
+import type { Contact } from "../types/Contact";
+import type { BulkMessageHistoryItem, Conversation } from "../types/Sms";
+import { fetchConversations } from "../api/sms";
+import { fetchContacts } from "../api/contacts";
+
+interface HomeProps {
+    onTabChange: (tab: any) => void;
+    onSelectContact: (contact: Contact) => void;
+    onSelectBulkMessage: (message: BulkMessageHistoryItem) => void;
+}
+
+export const Home: React.FC<HomeProps> = ({ onTabChange, onSelectContact, onSelectBulkMessage }) => {
+    const [balance, setBalance] = useState<number | null>(null);
+    const [conversations, setConversations] = useState<Conversation[]>([]);
+    const [contactsCount, setContactsCount] = useState<number>(0);
+    const [loading, setLoading] = useState(true);
+
+    useEffect(() => {
+        const loadHomeData = async () => {
+            try {
+                // 1. Fetch Balance
+                const credRes = await fetch('/api/credits', {
+                    headers: {
+                        'X-Webhook-Secret': 'f7RkQ2pL9zV3tX8cB1nS4yW6',
+                        'Content-Type': 'application/json',
+                    }
+                });
+                const credData = await credRes.json();
+                setBalance(credData.balance || credData.data?.balance || 0);
+
+                // 2. Fetch Conversations for stats and recent activity
+                const convs = await fetchConversations();
+                setConversations(convs);
+
+                // 3. Fetch Contacts count
+                const contacts = await fetchContacts();
+                setContactsCount(contacts.length);
+            } catch (error) {
+                console.error("Failed to load home data", error);
+            } finally {
+                setLoading(false);
+            }
+        };
+
+        loadHomeData();
+    }, []);
+
+    const getGreeting = () => {
+        const hour = new Date().getHours();
+        if (hour < 12) return "Good morning";
+        if (hour < 18) return "Good afternoon";
+        return "Good evening";
+    };
+
+    const toProperCase = (name: string): string => {
+        return name.replace(/\b\w/g, (char) => char.toUpperCase());
+    };
+
+    const handleRecentClick = (conv: Conversation) => {
+        if (conv.type === 'bulk') {
+            const batchId = conv.id.replace(/^group_/, '');
+            onSelectBulkMessage({
+                id: `bulk-db-${batchId}`,
+                message: conv.last_message || '',
+                recipientCount: conv.members.length,
+                recipientNumbers: conv.members,
+                recipientKey: batchId,
+                timestamp: conv.last_message_at || conv.updated_at || new Date().toISOString(),
+                status: 'sent',
+                batchId,
+                fromDatabase: true,
+            });
+        } else {
+            const phone = conv.id.replace(/^conv_/, '');
+            onSelectContact({
+                id: conv.id,
+                name: conv.name || phone,
+                phone: phone,
+                lastMessage: conv.last_message
+            });
+        }
+    };
+
+    return (
+        <div className="h-full flex flex-col overflow-y-auto custom-scrollbar bg-[#f9fafb] dark:bg-[#111111]">
+            <div className="max-w-5xl mx-auto w-full px-6 py-8 sm:py-12">
+                {/* Header Section */}
+                <div className="mb-10 animate-in fade-in slide-in-from-bottom-4 duration-700">
+                    <div className="flex items-center gap-4 mb-3">
+                        <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-[#2b83fa] to-[#60a5fa] flex items-center justify-center shadow-lg shadow-blue-500/20">
+                            <FiHome className="h-6 w-6 text-white" />
+                        </div>
+                        <div>
+                            <h1 className="text-3xl font-extrabold text-[#111111] dark:text-white tracking-tight">
+                                {getGreeting()}
+                            </h1>
+                            <p className="text-[#6e6e73] dark:text-[#a0a0ab] font-medium">Welcome back to your SMS command center.</p>
+                        </div>
+                    </div>
+                </div>
+
+                {/* Stats Grid */}
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-10">
+                    <div className="p-6 rounded-3xl bg-gradient-to-br from-[#2b83fa] to-[#60a5fa] shadow-lg shadow-blue-500/20 hover:shadow-blue-500/30 transition-all group overflow-hidden relative">
+                        <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:scale-110 transition-transform duration-500">
+                            <FiCreditCard className="w-24 h-24 text-white" />
+                        </div>
+                        <div className="relative z-10">
+                            <div className="w-10 h-10 rounded-xl bg-white/20 backdrop-blur-md flex items-center justify-center text-white mb-4">
+                                <FiCreditCard className="h-5 w-5" />
+                            </div>
+                            <p className="text-[13px] font-bold text-white/70 uppercase tracking-widest mb-1">Available Credits</p>
+                            <h2 className="text-3xl font-black text-white">
+                                {loading ? "---" : balance?.toLocaleString()}
+                            </h2>
+                        </div>
+                    </div>
+
+                    <div className="p-6 rounded-3xl bg-gradient-to-br from-purple-500 to-indigo-600 shadow-lg shadow-purple-500/20 hover:shadow-purple-500/30 transition-all group overflow-hidden relative">
+                        <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:scale-110 transition-transform duration-500">
+                            <FiMessageSquare className="w-24 h-24 text-white" />
+                        </div>
+                        <div className="relative z-10">
+                            <div className="w-10 h-10 rounded-xl bg-white/20 backdrop-blur-md flex items-center justify-center text-white mb-4">
+                                <FiMessageSquare className="h-5 w-5" />
+                            </div>
+                            <p className="text-[13px] font-bold text-white/70 uppercase tracking-widest mb-1">Total Conversations</p>
+                            <h2 className="text-3xl font-black text-white">
+                                {loading ? "---" : conversations.length}
+                            </h2>
+                        </div>
+                    </div>
+
+                    <div className="p-6 rounded-3xl bg-gradient-to-br from-emerald-500 to-teal-600 shadow-lg shadow-emerald-500/20 hover:shadow-emerald-500/30 transition-all group overflow-hidden relative">
+                        <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:scale-110 transition-transform duration-500">
+                            <FiUsers className="w-24 h-24 text-white" />
+                        </div>
+                        <div className="relative z-10">
+                            <div className="w-10 h-10 rounded-xl bg-white/20 backdrop-blur-md flex items-center justify-center text-white mb-4">
+                                <FiUsers className="h-5 w-5" />
+                            </div>
+                            <p className="text-[13px] font-bold text-white/70 uppercase tracking-widest mb-1">Total Contacts</p>
+                            <h2 className="text-3xl font-black text-white">
+                                {loading ? "---" : contactsCount}
+                            </h2>
+                        </div>
+                    </div>
+                </div>
+
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-10">
+                    {/* Quick Actions */}
+                    <div>
+                        <h3 className="text-[15px] font-bold text-[#111111] dark:text-white mb-5 flex items-center gap-2">
+                            Quick Actions
+                        </h3>
+                        <div className="space-y-3">
+                            <button
+                                onClick={() => onTabChange('compose')}
+                                className="w-full p-4 rounded-2xl bg-white dark:bg-[#1c1e21] border border-[#0000000a] dark:border-[#ffffff0a] shadow-sm hover:shadow-indigo-500/10 hover:border-[#2b83fa]/30 transition-all text-left flex items-center justify-between group"
+                            >
+                                <div className="flex items-center gap-4">
+                                    <div className="w-12 h-12 rounded-xl bg-blue-50 dark:bg-blue-900/20 flex items-center justify-center text-[#2b83fa] transition-transform group-hover:scale-110">
+                                        <FiPlus className="h-6 w-6" />
+                                    </div>
+                                    <div>
+                                        <h4 className="font-bold text-[#111111] dark:text-white text-[15px]">Start New Chat</h4>
+                                        <p className="text-[12px] text-gray-500 dark:text-gray-400 font-medium">Create a single or bulk message</p>
+                                    </div>
+                                </div>
+                                <FiArrowRight className="h-5 w-5 text-gray-300 group-hover:text-[#2b83fa] group-hover:translate-x-1 transition-all" />
+                            </button>
+
+                            <button
+                                onClick={() => onTabChange('contacts')}
+                                className="w-full p-4 rounded-2xl bg-white dark:bg-[#1c1e21] border border-[#0000000a] dark:border-[#ffffff0a] shadow-sm hover:shadow-emerald-500/10 hover:border-emerald-500/30 transition-all text-left flex items-center justify-between group"
+                            >
+                                <div className="flex items-center gap-4">
+                                    <div className="w-12 h-12 rounded-xl bg-emerald-50 dark:bg-emerald-900/20 flex items-center justify-center text-emerald-500 transition-transform group-hover:scale-110">
+                                        <FiUsers className="h-6 w-6" />
+                                    </div>
+                                    <div>
+                                        <h4 className="font-bold text-[#111111] dark:text-white text-[15px]">Manage Contacts</h4>
+                                        <p className="text-[12px] text-gray-500 dark:text-gray-400 font-medium">Add, edit, or remove recipients</p>
+                                    </div>
+                                </div>
+                                <FiArrowRight className="h-5 w-5 text-gray-300 group-hover:text-emerald-500 group-hover:translate-x-1 transition-all" />
+                            </button>
+
+                            <button
+                                onClick={() => onTabChange('settings')}
+                                className="w-full p-4 rounded-2xl bg-white dark:bg-[#1c1e21] border border-[#0000000a] dark:border-[#ffffff0a] shadow-sm hover:shadow-gray-500/10 hover:border-gray-500/30 transition-all text-left flex items-center justify-between group"
+                            >
+                                <div className="flex items-center gap-4">
+                                    <div className="w-12 h-12 rounded-xl bg-gray-50 dark:bg-gray-800 flex items-center justify-center text-gray-600 dark:text-gray-400 transition-transform group-hover:scale-110">
+                                        <FiSettings className="h-6 w-6" />
+                                    </div>
+                                    <div>
+                                        <h4 className="font-bold text-[#111111] dark:text-white text-[15px]">Account Settings</h4>
+                                        <p className="text-[12px] text-gray-500 dark:text-gray-400 font-medium">Profile, API keys, and more</p>
+                                    </div>
+                                </div>
+                                <FiArrowRight className="h-5 w-5 text-gray-300 group-hover:text-gray-600 group-hover:translate-x-1 transition-all" />
+                            </button>
+                        </div>
+                    </div>
+
+                    {/* Recent Activity */}
+                    <div>
+                        <h3 className="text-[15px] font-bold text-[#111111] dark:text-white mb-5 flex items-center gap-2">
+                            Recent Activity
+                        </h3>
+                        <div className="space-y-2">
+                            {loading ? (
+                                [1, 2, 3].map(i => (
+                                    <div key={i} className="w-full p-3 rounded-2xl bg-white/50 dark:bg-[#1c1e21]/50 border border-[#00000005] animate-pulse h-16" />
+                                ))
+                            ) : conversations.length > 0 ? (
+                                conversations.slice(0, 5).map(conv => (
+                                    <button
+                                        key={conv.id}
+                                        onClick={() => handleRecentClick(conv)}
+                                        className="w-full p-3.5 rounded-2xl bg-white dark:bg-[#1c1e21] border border-[#0000000a] dark:border-[#ffffff0a] shadow-sm hover:shadow-md transition-all text-left flex items-center justify-between group"
+                                    >
+                                        <div className="flex items-center gap-3 overflow-hidden">
+                                            <div className={`w-10 h-10 rounded-full flex-shrink-0 flex items-center justify-center text-white font-bold shadow-sm ${conv.type === 'bulk' ? 'bg-gradient-to-br from-purple-500 to-indigo-600' : 'bg-gradient-to-br from-[#2b83fa] to-[#60a5fa]'}`}>
+                                                {conv.type === 'bulk' ? <FiUsers size={18} /> : (conv.name || conv.id.replace(/^conv_/, '')).charAt(0).toUpperCase()}
+                                            </div>
+                                            <div className="min-w-0">
+                                                <h4 className="font-bold text-[#111111] dark:text-white text-[13.5px] truncate">
+                                                    {conv.type === 'bulk' ? 'Bulk Message' : toProperCase(conv.name || conv.id.replace(/^conv_/, ''))}
+                                                </h4>
+                                                <p className="text-[11.5px] text-gray-500 dark:text-gray-400 truncate max-w-[200px] font-medium">
+                                                    {conv.last_message || "No messages yet"}
+                                                </p>
+                                            </div>
+                                        </div>
+                                        <div className="flex flex-col items-end gap-1 flex-shrink-0">
+                                            <div className="flex items-center gap-1 text-[10px] text-gray-400 font-bold uppercase tracking-tighter">
+                                                <FiClock size={10} />
+                                                {conv.last_message_at ? new Date(conv.last_message_at).toLocaleDateString([], { month: 'short', day: 'numeric' }) : "--"}
+                                            </div>
+                                            <div className="px-1.5 py-0.5 rounded-full bg-blue-50 dark:bg-blue-900/20 text-[#2b83fa] text-[9px] font-black uppercase tracking-widest opacity-0 group-hover:opacity-100 transition-opacity">
+                                                View
+                                            </div>
+                                        </div>
+                                    </button>
+                                ))
+                            ) : (
+                                <div className="p-10 text-center rounded-3xl border-2 border-dashed border-[#0000000a] dark:border-[#ffffff0a]">
+                                    <p className="text-gray-400 dark:text-gray-500 text-[14px] font-medium italic">No recent activity found.</p>
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    );
+};
