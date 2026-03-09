@@ -39,7 +39,7 @@ export default async function handler(
       }
     };
 
-    const targetUrl = 'https://smspro-api.nolacrm.io/webhook/send_sms';
+    const targetUrl = 'https://smspro-api.nolacrm.io/webhook/send_sms.php';
     console.log('Proxying SMS to:', targetUrl, 'for', formattedNumber);
 
     const webhookResponse = await fetch(targetUrl, {

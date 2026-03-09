@@ -18,7 +18,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
 
     try {
-        const cloudRunUrl = `${CLOUD_RUN_URL}/api/v1/accounts/default/credits`; // Assuming 'default' or similar logic
+        const cloudRunUrl = `${CLOUD_RUN_URL}/api/credits`;
         console.log('Proxying balance GET to:', cloudRunUrl);
 
         const response = await fetch(cloudRunUrl, {
@@ -30,15 +30,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         });
 
         if (!response.ok) {
-            // Fallback or mock for now since we don't have the exact account ID logic yet
-            // In a real app, the account ID would come from a session/token
-            return res.status(200).json({ balance: 500 });
+            console.error('Credits Proxy Error:', response.status);
+            return res.status(200).json({ balance: 0, status: 'error' });
         }
 
         const data = await response.json();
-        return res.status(response.status).json(data);
+        return res.status(200).json(data);
     } catch (error) {
-        console.error('Balance Proxy Error:', error);
-        return res.status(200).json({ balance: 500 }); // Graceful fallback
+        console.error('Balance Proxy Internal Error:', error);
+        return res.status(200).json({ balance: 0, error: 'Internal proxy error' });
     }
 }
