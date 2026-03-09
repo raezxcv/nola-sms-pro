@@ -1,11 +1,11 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 
 export default async function handler(
-  request: VercelRequest,
-  response: VercelResponse
+  req: VercelRequest,
+  res: VercelResponse
 ) {
-  if (request.method !== 'POST') {
-    return response.status(405).json({
+  if (req.method !== 'POST') {
+    return res.status(405).json({
       status: 'error',
       message: 'Method not allowed'
     });
@@ -13,12 +13,10 @@ export default async function handler(
 
   try {
     // Parse the form data from request body
-    const { number, message, sendername } = request.body || {};
+    const { number, message, sendername, batch_id, name, recipient_key } = req.body?.customData || req.body || {};
 
     let formattedNumber = number || '';
-
     // Format Philippine phone numbers - the webhook expects 09xxxxxxxxx format
-    // It will convert +63 to 0 internally
     if (formattedNumber.startsWith('+63')) {
       formattedNumber = '0' + formattedNumber.substring(3);
     } else if (formattedNumber.startsWith('639')) {
@@ -29,16 +27,22 @@ export default async function handler(
       formattedNumber = '0' + formattedNumber;
     }
 
-    // Rebuild the body with the customData wrapper as JSON
+    // Rebuild the body with all supported fields
     const payload = {
       customData: {
         number: formattedNumber,
         message: message || '',
         sendername: sendername || 'NOLACRM',
+        batch_id,
+        name,
+        recipient_key
       }
     };
 
-    const webhookResponse = await fetch('https://smspro-api.nolacrm.io/webhook/send_sms', {
+    const targetUrl = 'https://smspro-api.nolacrm.io/webhook/send_sms';
+    console.log('Proxying SMS to:', targetUrl, 'for', formattedNumber);
+
+    const webhookResponse = await fetch(targetUrl, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -47,14 +51,24 @@ export default async function handler(
       body: JSON.stringify(payload),
     });
 
-    const data = await webhookResponse.json();
+    const errorText = !webhookResponse.ok ? await webhookResponse.text().catch(() => 'No body') : '';
+    if (!webhookResponse.ok) {
+      console.error('Backend SMS Error:', webhookResponse.status, errorText);
+      return res.status(webhookResponse.status).json({
+        status: 'error',
+        message: 'Backend rejected SMS',
+        details: errorText.substring(0, 200)
+      });
+    }
 
-    return response.status(200).json(data);
-  } catch (error) {
+    const data = await webhookResponse.json();
+    return res.status(200).json(data);
+  } catch (error: any) {
     console.error('SMS Proxy Error:', error);
-    return response.status(500).json({
+    return res.status(500).json({
       status: 'error',
-      message: 'Failed to send SMS'
+      message: 'Failed to proxy SMS',
+      details: error.message
     });
   }
 }

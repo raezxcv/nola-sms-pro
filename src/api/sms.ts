@@ -126,7 +126,7 @@ export const sendSms = async (
     },
   };
 
-  const SEND_SMS_URL = "https://smspro-api.nolacrm.io/webhook/send_sms.php";
+  const SEND_SMS_URL = "/api/sms";
   console.log("Sending SMS payload directly to production:", payload);
   console.log("Sending to:", SEND_SMS_URL);
 
