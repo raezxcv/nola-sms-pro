@@ -1,4 +1,6 @@
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
+import { fetchCreditBalance, fetchCreditTransactions } from "../api/credits";
+import type { CreditTransaction } from "../api/credits";
 import {
     FiUser, FiSend, FiCode, FiBell, FiCreditCard,
     FiSave, FiPlus, FiTrash2, FiCopy, FiCheck,
@@ -531,10 +533,83 @@ const NotificationsSection: React.FC = () => {
 };
 
 // ─── Section: Credits ───────────────────────────────────────────────────────
+
+/** Format a relative date string from an ISO timestamp. */
+function formatTxDate(iso: string): string {
+    try {
+        const d = new Date(iso);
+        const now = new Date();
+        const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+        const yesterdayStart = new Date(todayStart.getTime() - 86400000);
+        const time = d.toLocaleTimeString('en-PH', { hour: 'numeric', minute: '2-digit', hour12: true });
+        if (d >= todayStart) return `Today, ${time}`;
+        if (d >= yesterdayStart) return `Yesterday, ${time}`;
+        return d.toLocaleDateString('en-PH', { month: 'short', day: 'numeric' }) + ', ' + time;
+    } catch {
+        return iso;
+    }
+}
+
+/** Derive stats from a transaction array. */
+function deriveStats(txs: CreditTransaction[]) {
+    const now = new Date();
+    const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+    const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).getTime();
+
+    let sentToday = 0;
+    let creditsUsedToday = 0;
+    let creditsUsedMonth = 0;
+
+    for (const tx of txs) {
+        if (tx.type !== 'deduction') continue;
+        const t = new Date(tx.created_at).getTime();
+        const abs = Math.abs(tx.amount);
+        if (t >= todayStart) { sentToday += 1; creditsUsedToday += abs; }
+        if (t >= monthStart) creditsUsedMonth += abs;
+    }
+
+    return { sentToday, creditsUsedToday, creditsUsedMonth };
+}
+
 const CreditsSection: React.FC = () => {
-    const account = getAccountSettings();
+    const [balance, setBalance] = useState<number | null>(null);
+    const [balanceLoading, setBalanceLoading] = useState(true);
+    const [transactions, setTransactions] = useState<CreditTransaction[]>([]);
+    const [txLoading, setTxLoading] = useState(true);
     const [topUpAmount, setTopUpAmount] = useState(500);
     const [submitted, setSubmitted] = useState(false);
+    const mountedRef = useRef(true);
+
+    const load = useCallback(async () => {
+        setBalanceLoading(true);
+        setTxLoading(true);
+        const [bal, txs] = await Promise.all([
+            fetchCreditBalance(),
+            fetchCreditTransactions('default', 50),
+        ]);
+        if (!mountedRef.current) return;
+        setBalance(bal);
+        setTransactions(txs);
+        setBalanceLoading(false);
+        setTxLoading(false);
+    }, []);
+
+    useEffect(() => {
+        mountedRef.current = true;
+        load();
+        window.addEventListener('sms-sent', load);
+        window.addEventListener('bulk-message-sent', load);
+        return () => {
+            mountedRef.current = false;
+            window.removeEventListener('sms-sent', load);
+            window.removeEventListener('bulk-message-sent', load);
+        };
+    }, [load]);
+
+    const displayBalance = balance ?? 0;
+    const usagePercent = Math.min(100, (displayBalance / 1000) * 100);
+    const usageColor = displayBalance < 50 ? 'bg-red-500' : displayBalance < 200 ? 'bg-amber-400' : 'bg-emerald-500';
+    const { sentToday, creditsUsedToday, creditsUsedMonth } = deriveStats(transactions);
 
     const PACKAGES = [
         { credits: 500, price: 500 },
@@ -546,19 +621,8 @@ const CreditsSection: React.FC = () => {
     const handleTopUp = (e: React.FormEvent) => {
         e.preventDefault();
         setSubmitted(true);
-        setTimeout(() => { setSubmitted(false); }, 2500);
+        setTimeout(() => setSubmitted(false), 2500);
     };
-
-    const usagePercent = Math.min(100, (account.creditBalance / 1000) * 100);
-    const usageColor = account.creditBalance < 50 ? "bg-red-500" : account.creditBalance < 200 ? "bg-amber-400" : "bg-emerald-500";
-
-    const LEDGER_MOCK = [
-        { type: "deduction", amount: -3, note: "SMS to +63917XXXXXXX", date: "Today, 2:15 PM" },
-        { type: "deduction", amount: -15, note: "Bulk send – 5 recipients", date: "Today, 9:00 AM" },
-        { type: "top_up", amount: +500, note: "Manual top-up by admin", date: "Mar 2, 3:00 PM" },
-        { type: "deduction", amount: -2, note: "SMS to +63918XXXXXXX", date: "Mar 2, 11:00 AM" },
-        { type: "refund", amount: +2, note: "Refund – send failed", date: "Mar 1, 4:00 PM" },
-    ];
 
     return (
         <div className="space-y-5">
@@ -569,16 +633,29 @@ const CreditsSection: React.FC = () => {
                 <div className="flex items-start justify-between mb-4">
                     <div>
                         <p className="text-[12px] font-semibold text-white/70 uppercase tracking-wider">Available Credits</p>
-                        <p className="text-[42px] font-black leading-none mt-1">{account.creditBalance.toLocaleString()}</p>
+                        {balanceLoading ? (
+                            <div className="mt-2 h-10 w-28 bg-white/20 rounded-lg animate-pulse" />
+                        ) : (
+                            <p className="text-[42px] font-black leading-none mt-1">{displayBalance.toLocaleString()}</p>
+                        )}
                         <p className="text-[12px] text-white/60 mt-1">1 credit ≈ 1 SMS (160 chars)</p>
                     </div>
-                    <div className="w-12 h-12 rounded-xl bg-white/10 flex items-center justify-center">
-                        <FiCreditCard className="w-6 h-6 text-white" />
+                    <div className="flex flex-col items-center gap-2">
+                        <div className="w-12 h-12 rounded-xl bg-white/10 flex items-center justify-center">
+                            <FiCreditCard className="w-6 h-6 text-white" />
+                        </div>
+                        <button
+                            onClick={load}
+                            className="w-8 h-8 rounded-lg bg-white/10 hover:bg-white/20 flex items-center justify-center transition-all active:scale-90"
+                            title="Refresh"
+                        >
+                            <FiRefreshCw className={`w-3.5 h-3.5 text-white ${balanceLoading ? 'animate-spin' : ''}`} />
+                        </button>
                     </div>
                 </div>
                 <div className="mb-1">
                     <div className="h-1.5 bg-white/20 rounded-full overflow-hidden">
-                        <div className={`h-full ${usageColor} rounded-full transition-all`} style={{ width: `${usagePercent}%` }} />
+                        <div className={`h-full ${usageColor} rounded-full transition-all duration-700`} style={{ width: `${usagePercent}%` }} />
                     </div>
                 </div>
                 <div className="flex items-center justify-between text-[11px] text-white/60">
@@ -587,25 +664,26 @@ const CreditsSection: React.FC = () => {
                 </div>
             </div>
 
+            {/* Stats Row */}
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 {[
-                    { label: "Sent Today", value: "18", icon: <FiSend className="w-4 h-4" />, color: "text-[#2b83fa]", bg: "bg-[#2b83fa]/10" },
-                    { label: "Credits Used", value: "18", icon: <FiZap className="w-4 h-4" />, color: "text-amber-500", bg: "bg-amber-500/10" },
-                    { label: "This Month", value: "342", icon: <FiRefreshCw className="w-4 h-4" />, color: "text-purple-500", bg: "bg-purple-500/10" },
+                    { label: 'Sent Today', value: txLoading ? '—' : String(sentToday), icon: <FiSend className="w-4 h-4" />, color: 'text-[#2b83fa]', bg: 'bg-[#2b83fa]/10' },
+                    { label: 'Credits Used Today', value: txLoading ? '—' : String(creditsUsedToday), icon: <FiZap className="w-4 h-4" />, color: 'text-amber-500', bg: 'bg-amber-500/10' },
+                    { label: 'This Month', value: txLoading ? '—' : creditsUsedMonth.toLocaleString(), icon: <FiRefreshCw className="w-4 h-4" />, color: 'text-purple-500', bg: 'bg-purple-500/10' },
                 ].map(stat => (
                     <Card key={stat.label} className="flex items-center gap-3 !py-4">
                         <div className={`w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 ${stat.bg} ${stat.color}`}>{stat.icon}</div>
                         <div>
-                            <p className="text-[20px] font-black text-[#111111] dark:text-[#ececf1]">{stat.value}</p>
+                            <p className={`text-[20px] font-black text-[#111111] dark:text-[#ececf1] ${txLoading ? 'animate-pulse' : ''}`}>{stat.value}</p>
                             <p className="text-[11px] text-[#9aa0a6]">{stat.label}</p>
                         </div>
                     </Card>
                 ))}
             </div>
 
+            {/* Top Up */}
             <Card>
                 <h3 className="text-[13px] font-bold text-[#37352f] dark:text-[#ececf1] uppercase tracking-wider mb-4">Top Up Credits</h3>
-
                 <form onSubmit={handleTopUp} className="space-y-4">
                     <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                         {PACKAGES.map(pkg => (
@@ -614,13 +692,13 @@ const CreditsSection: React.FC = () => {
                                 type="button"
                                 onClick={() => setTopUpAmount(pkg.credits)}
                                 className={`flex flex-col items-center py-3 rounded-xl border-2 transition-all ${topUpAmount === pkg.credits
-                                    ? "border-[#2b83fa] bg-[#2b83fa]/5 dark:bg-[#2b83fa]/10"
-                                    : "border-[#e0e0e0] dark:border-[#2a2b32] hover:border-[#2b83fa]/40"
+                                    ? 'border-[#2b83fa] bg-[#2b83fa]/5 dark:bg-[#2b83fa]/10'
+                                    : 'border-[#e0e0e0] dark:border-[#2a2b32] hover:border-[#2b83fa]/40'
                                     }`}
                             >
-                                <span className={`text-[16px] font-black ${topUpAmount === pkg.credits ? "text-[#2b83fa]" : "text-[#111111] dark:text-[#ececf1]"}`}>{pkg.credits.toLocaleString()}</span>
+                                <span className={`text-[16px] font-black ${topUpAmount === pkg.credits ? 'text-[#2b83fa]' : 'text-[#111111] dark:text-[#ececf1]'}`}>{pkg.credits.toLocaleString()}</span>
                                 <span className="text-[11px] text-[#9aa0a6]">credits</span>
-                                <span className={`text-[12px] font-bold mt-1 ${topUpAmount === pkg.credits ? "text-[#2b83fa]" : "text-[#6e6e73] dark:text-[#94959b]"}`}>₱{pkg.price}</span>
+                                <span className={`text-[12px] font-bold mt-1 ${topUpAmount === pkg.credits ? 'text-[#2b83fa]' : 'text-[#6e6e73] dark:text-[#94959b]'}`}>₱{pkg.price}</span>
                             </button>
                         ))}
                     </div>
@@ -636,24 +714,63 @@ const CreditsSection: React.FC = () => {
                 </form>
             </Card>
 
+            {/* Transaction Ledger */}
             <Card>
-                <h3 className="text-[13px] font-bold text-[#37352f] dark:text-[#ececf1] mb-4 uppercase tracking-wider">Recent Transactions</h3>
-                <div className="space-y-2">
-                    {LEDGER_MOCK.map((tx, i) => (
-                        <div key={i} className="flex items-center gap-3 py-2 border-b border-[#f0f0f0] dark:border-[#2a2b32] last:border-0">
-                            <div className={`w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0 text-[11px] font-bold ${tx.type === "top_up" || tx.type === "refund" ? "bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 dark:text-emerald-400" : "bg-red-50 dark:bg-red-900/20 text-red-500"}`}>
-                                {tx.type === "top_up" || tx.type === "refund" ? "+" : "−"}
-                            </div>
-                            <div className="flex-1 min-w-0">
-                                <p className="text-[13px] font-medium text-[#111111] dark:text-[#ececf1] truncate">{tx.note}</p>
-                                <p className="text-[11px] text-[#9aa0a6]">{tx.date}</p>
-                            </div>
-                            <span className={`text-[13px] font-bold flex-shrink-0 ${tx.amount > 0 ? "text-emerald-600 dark:text-emerald-400" : "text-red-500"}`}>
-                                {tx.amount > 0 ? "+" : ""}{tx.amount} credits
-                            </span>
-                        </div>
-                    ))}
+                <div className="flex items-center justify-between mb-4">
+                    <h3 className="text-[13px] font-bold text-[#37352f] dark:text-[#ececf1] uppercase tracking-wider">Recent Transactions</h3>
+                    {!txLoading && transactions.length > 0 && (
+                        <span className="text-[11px] text-[#9aa0a6]">{transactions.length} record{transactions.length !== 1 ? 's' : ''}</span>
+                    )}
                 </div>
+
+                {txLoading ? (
+                    /* Skeleton rows */
+                    <div className="space-y-3">
+                        {Array.from({ length: 4 }).map((_, i) => (
+                            <div key={i} className="flex items-center gap-3 py-1 animate-pulse">
+                                <div className="w-7 h-7 rounded-full bg-gray-200 dark:bg-[#2a2b32] flex-shrink-0" />
+                                <div className="flex-1 space-y-1.5">
+                                    <div className="h-3 bg-gray-200 dark:bg-[#2a2b32] rounded w-3/4" />
+                                    <div className="h-2.5 bg-gray-100 dark:bg-[#1e1f22] rounded w-1/3" />
+                                </div>
+                                <div className="h-3 bg-gray-200 dark:bg-[#2a2b32] rounded w-16 flex-shrink-0" />
+                            </div>
+                        ))}
+                    </div>
+                ) : transactions.length === 0 ? (
+                    <div className="flex flex-col items-center justify-center py-8 gap-3 text-center">
+                        <div className="w-12 h-12 rounded-xl bg-[#2b83fa]/10 flex items-center justify-center">
+                            <FiCreditCard className="w-6 h-6 text-[#2b83fa]/60" />
+                        </div>
+                        <p className="text-[14px] font-semibold text-[#37352f] dark:text-[#ececf1]">No transactions yet</p>
+                        <p className="text-[12px] text-[#9aa0a6] max-w-xs">Send an SMS or top up your balance to see activity here.</p>
+                    </div>
+                ) : (
+                    <div className="space-y-0">
+                        {transactions.map((tx) => {
+                            const isCredit = tx.type === 'top_up' || tx.type === 'refund' || tx.type === 'manual_adjustment';
+                            const sign = isCredit ? '+' : '−';
+                            const absAmount = Math.abs(tx.amount);
+                            return (
+                                <div key={tx.transaction_id} className="flex items-center gap-3 py-2.5 border-b border-[#f0f0f0] dark:border-[#2a2b32] last:border-0">
+                                    <div className={`w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0 text-[11px] font-bold ${isCredit ? 'bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 dark:text-emerald-400' : 'bg-red-50 dark:bg-red-900/20 text-red-500'}`}>
+                                        {sign}
+                                    </div>
+                                    <div className="flex-1 min-w-0">
+                                        <p className="text-[13px] font-medium text-[#111111] dark:text-[#ececf1] truncate">{tx.description}</p>
+                                        <p className="text-[11px] text-[#9aa0a6]">{formatTxDate(tx.created_at)}</p>
+                                    </div>
+                                    <div className="flex flex-col items-end flex-shrink-0">
+                                        <span className={`text-[13px] font-bold ${isCredit ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-500'}`}>
+                                            {sign}{absAmount.toLocaleString()} cr
+                                        </span>
+                                        <span className="text-[10px] text-[#9aa0a6]">bal: {tx.balance_after.toLocaleString()}</span>
+                                    </div>
+                                </div>
+                            );
+                        })}
+                    </div>
+                )}
             </Card>
         </div>
     );

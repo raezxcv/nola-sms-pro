@@ -6,6 +6,7 @@ import type { BulkMessageHistoryItem } from "../types/Sms";
 import { getBulkMessageHistory, renameBulkMessage, deleteBulkMessage, deleteContact, getDeletedContactIds } from "../utils/storage";
 import { TbLayoutSidebarLeftCollapse, TbLayoutSidebarRightCollapse } from "react-icons/tb";
 import { FiUsers, FiChevronDown, FiEdit2, FiTrash2, FiMoreVertical, FiHome, FiPlus, FiX } from "react-icons/fi";
+import GlareHover from "./GlareHover";
 
 export type ViewTab = 'home' | 'compose' | 'contacts' | 'templates' | 'settings';
 
@@ -281,20 +282,32 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
         {/* New Message Button */}
         <div className={`mt-1 mb-3 ${isCollapsed ? 'px-2 flex justify-center' : 'px-4'}`}>
-          <button
-            onClick={() => onTabChange('compose')}
+          <GlareHover
+            glareColor="#ffffff"
+            glareOpacity={0.25}
+            glareAngle={-30}
+            glareSize={300}
+            transitionDuration={700}
+            playOnce={false}
             className={`
-              group flex items-center justify-center gap-2 
-              bg-gradient-to-r from-[#2b83fa] to-[#1d6bd4] 
-              text-white transition-all duration-300
-              hover:shadow-md active:scale-95 cursor-pointer
-              ${isCollapsed ? 'w-10 h-10 rounded-full p-0 shadow-md' : 'w-full py-2 px-4 rounded-full shadow-md'}
+              btn-new-message cursor-pointer group active:scale-95 transition-all
+              ${isCollapsed ? 'w-10 h-10 rounded-full shadow-md' : 'w-full rounded-full shadow-md'}
             `}
-            title="New Message"
+            style={{ display: 'flex' }}
           >
-            <FiPlus className={`h-4 w-4 transition-transform duration-300 group-hover:rotate-90`} />
-            {!isCollapsed && <span className="font-bold text-[13px] tracking-tight">New Message</span>}
-          </button>
+            <button
+              onClick={() => onTabChange('compose')}
+              className={`
+                w-full h-full flex items-center justify-center gap-2
+                text-white bg-transparent border-none
+                ${isCollapsed ? 'p-0' : 'py-2.5 px-4'}
+              `}
+              title="New Message"
+            >
+              <FiPlus className={`h-4 w-4 transition-transform duration-300 group-hover:rotate-90`} />
+              {!isCollapsed && <span className="font-bold text-[13px] tracking-tight">New Message</span>}
+            </button>
+          </GlareHover>
         </div>
 
         {/* Navigation List */}
