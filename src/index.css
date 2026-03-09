@@ -4,13 +4,13 @@
 
 @layer utilities {
   .btn-new-message {
-    background-size: 200% auto;
-    background-image: linear-gradient(120deg, #1d6bd4 0%, #2b83fa 40%, #1563c5 70%, #1d6bd4 100%);
+    background-size: 210% 210%;
+    background-image: linear-gradient(135deg, #1d6bd4 0%, #2b83fa 50%, #1d6bd4 100%);
     transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-    background-position: left center;
+    background-position: 0% 0%;
   }
   .btn-new-message:hover {
-    background-position: right center;
+    background-position: 100% 100%;
     transform: translateY(-2px);
     box-shadow: 0 8px 25px rgba(43, 131, 250, 0.45), 0 0 12px rgba(43, 131, 250, 0.2) !important;
   }
