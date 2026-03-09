@@ -21,7 +21,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const limit = (req.query.limit as string) || '50';
 
     try {
-        const cloudRunUrl = `${CLOUD_RUN_URL}/api/v1/accounts/${accountId}/credit_transactions?limit=${limit}`;
+        const cloudRunUrl = `${CLOUD_RUN_URL}/api/get_credit_transactions?account_id=${encodeURIComponent(accountId)}&limit=${limit}`;
         console.log('Proxying credit_transactions GET to:', cloudRunUrl);
 
         const response = await fetch(cloudRunUrl, {
