@@ -89,14 +89,14 @@ export const Home: React.FC<HomeProps> = ({ onTabChange, onSelectContact, onSele
                 {/* Header Section */}
                 <div className="mb-10 animate-in fade-in slide-in-from-bottom-4 duration-700">
                     <div className="flex items-center gap-4 mb-3">
-                        <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-[#2b83fa] to-[#60a5fa] flex items-center justify-center shadow-lg shadow-blue-500/20">
+                        <div className="w-12 h-12 rounded-full bg-gradient-to-br from-[#2b83fa] to-[#60a5fa] flex items-center justify-center shadow-lg shadow-blue-500/20">
                             <FiHome className="h-6 w-6 text-white" />
                         </div>
                         <div>
                             <h1 className="text-3xl font-extrabold text-[#111111] dark:text-white tracking-tight">
                                 {getGreeting()}
                             </h1>
-                            <p className="text-[#6e6e73] dark:text-[#a0a0ab] font-medium">Welcome back to your SMS command center.</p>
+                            <p className="text-[#6e6e73] dark:text-[#a0a0ab] font-medium">Welcome back to NOLA SMS Pro.</p>
                         </div>
                     </div>
                 </div>

@@ -46,32 +46,32 @@ export const CreditBadge = () => {
             <div
                 className={`
                     flex items-center gap-1.5 px-2.5 py-1 sm:py-1.5 transition-all duration-300
-                    bg-gradient-to-br from-emerald-500/10 to-emerald-600/5 dark:from-emerald-500/20 dark:to-emerald-500/5
-                    border border-emerald-500/20 dark:border-emerald-500/30 rounded-full cursor-pointer
-                    hover:border-emerald-500/40 hover:shadow-lg hover:shadow-emerald-500/5
+                    bg-gradient-to-br from-[#2b83fa]/10 to-[#2b83fa]/5 dark:from-[#2b83fa]/20 dark:to-[#2b83fa]/5
+                    border border-[#2b83fa]/20 dark:border-[#2b83fa]/30 rounded-full cursor-pointer
+                    hover:border-[#2b83fa]/40 hover:shadow-lg hover:shadow-blue-500/5
                     active:scale-95 select-none
                 `}
                 onClick={fetchBalance}
                 onMouseEnter={() => setShowInfo(true)}
                 onMouseLeave={() => setShowInfo(false)}
             >
-                <div className="w-5 h-5 flex items-center justify-center bg-emerald-500/10 dark:bg-emerald-500/20 rounded-full text-emerald-600 dark:text-emerald-400 flex-shrink-0">
+                <div className="w-5 h-5 flex items-center justify-center bg-[#2b83fa]/10 dark:bg-[#2b83fa]/20 rounded-full text-[#2b83fa] flex-shrink-0">
                     <FiCreditCard className="w-2.5 h-2.5" />
                 </div>
 
                 <div className="flex items-baseline gap-1">
-                    <span className="text-[13px] sm:text-[14px] font-black text-emerald-600 dark:text-emerald-400 leading-none">
+                    <span className="text-[13px] sm:text-[14px] font-black text-[#2b83fa] leading-none">
                         {loading ? (
                             <FiRefreshCw className="w-3 h-3 animate-spin" />
                         ) : (
                             balance?.toLocaleString() ?? "---"
                         )}
                     </span>
-                    <span className="text-[9px] sm:text-[10px] font-black text-emerald-600/50 dark:text-emerald-400/50 uppercase tracking-tighter leading-none">Credits</span>
+                    <span className="text-[9px] sm:text-[10px] font-black text-[#2b83fa]/50 uppercase tracking-tighter leading-none">Credits</span>
                 </div>
                 <button
                     onClick={(e) => { e.stopPropagation(); navigateToCredits(); }}
-                    className="ml-1 w-4 h-4 flex items-center justify-center bg-emerald-500/20 dark:bg-emerald-500/30 rounded-full text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500 hover:text-white transition-all"
+                    className="ml-1 w-4 h-4 flex items-center justify-center bg-[#2b83fa]/20 dark:bg-[#2b83fa]/30 rounded-full text-[#2b83fa] hover:bg-[#2b83fa] hover:text-white transition-all"
                     title="Buy Credits"
                 >
                     <FiPlus className="w-2.5 h-2.5" />

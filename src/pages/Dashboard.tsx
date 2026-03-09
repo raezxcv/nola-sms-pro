@@ -98,8 +98,8 @@ export const Dashboard: React.FC<DashboardProps> = ({ isMobileMenuOpen: external
       localStorage.removeItem('nola_active_contact');
       localStorage.removeItem('nola_active_bulk_message');
     }
-    // On mobile, close sidebar when selecting a main action area
-    if (window.innerWidth < 768 && tab !== 'compose' && onMobileMenuToggle) {
+    // On mobile, close sidebar when selecting any tab
+    if (window.innerWidth < 768 && onMobileMenuToggle) {
       onMobileMenuToggle();
     }
   };
@@ -135,10 +135,9 @@ export const Dashboard: React.FC<DashboardProps> = ({ isMobileMenuOpen: external
     <div className="flex h-screen bg-[#ffffff] dark:bg-[#202123] overflow-visible">
       {/* Sidebar - Left */}
       <div className={`
-        fixed md:relative z-[45] md:z-50 h-full transition-all duration-300 ease-in-out
-        ${isMobileMenuOpen ? 'w-80 border-r border-[#0000001a] dark:border-[#ffffff1a] bg-white dark:bg-[#121415]' : 'w-0 md:w-auto'}
-        ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}
-        overflow-visible
+        fixed inset-y-0 left-0 z-[100] md:relative md:z-50 h-full transition-all duration-300 ease-[cubic-bezier(0.4,0,0.2,1)]
+        ${isMobileMenuOpen ? 'w-80 translate-x-0 shadow-2xl opacity-100 visible' : 'w-0 -translate-x-full md:w-auto md:translate-x-0 opacity-0 md:opacity-100 invisible md:visible pointer-events-none md:pointer-events-auto'}
+        overflow-visible md:shadow-none
       `}>
         <div className={`h-full transition-all duration-300 z-[60] ${isSidebarCollapsed ? 'md:w-20' : 'md:w-80 w-80'}`}>
           <Sidebar
@@ -150,6 +149,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ isMobileMenuOpen: external
             isCollapsed={isSidebarCollapsed}
             onToggleCollapse={toggleCollapse}
             onSelectBulkMessage={handleSelectBulkMessage}
+            onCloseMobile={toggleMobileMenu}
           />
         </div>
       </div>
@@ -157,14 +157,22 @@ export const Dashboard: React.FC<DashboardProps> = ({ isMobileMenuOpen: external
       {/* Main Content Area */}
       <div className="flex-1 flex flex-col h-full w-full min-w-0 bg-[#f7f7f7] dark:bg-[#18191d]">
         {/* Mobile Header with Sidebar Toggle */}
-        <div className="md:hidden flex items-center justify-between p-3 border-b border-[#e5e5e5] dark:border-[#2a2b32] bg-[#ffffff] dark:bg-[#202123] sticky top-0 z-30">
+        <div className="md:hidden flex items-center justify-between px-4 py-2.5 border-b border-[#0000000a] dark:border-[#ffffff0a] bg-white/80 dark:bg-[#121415]/80 backdrop-blur-lg sticky top-0 z-30">
           <button
             onClick={toggleMobileMenu}
-            className="p-2 rounded-lg hover:bg-[#f7f7f7] dark:hover:bg-[#2a2b32] text-[#37352f] dark:text-[#ececf1] transition-colors"
+            className="p-2 -ml-2 rounded-xl hover:bg-black/[0.04] dark:hover:bg-white/[0.04] text-[#3c4043] dark:text-[#e8eaed] transition-all active:scale-90"
+            aria-label="Open Menu"
           >
             <FiMenu className="h-5 w-5" />
           </button>
-          <span className="font-semibold text-[#37352f] dark:text-[#ececf1] tracking-tight">NOLA SMS Pro</span>
+          <div className="flex items-center gap-2">
+            <div className="w-6 h-6 rounded-md bg-gradient-to-br from-[#2b83fa] to-[#60a5fa] flex items-center justify-center shadow-sm">
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5 text-white" viewBox="0 0 20 20" fill="currentColor">
+                <path fillRule="evenodd" d="M18 10c0 3.866-3.582 7-8 7a8.841 8.841 0 01-4.083-.98L2 17l1.338-3.123C2.493 12.767 2 11.434 2 10c0-3.866 3.582-7 8-7s8 3.134 8 7zM7 9H5v2h2V9zm8 0h-2v2h2V9zM9 9h2v2H9V9z" clipRule="evenodd" />
+              </svg>
+            </div>
+            <span className="font-bold text-[15px] text-[#111111] dark:text-white tracking-tight">NOLA SMS Pro</span>
+          </div>
           {/* Dark Mode Toggle in Mobile Header */}
           {toggleDarkMode && (
             <button
@@ -247,7 +255,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ isMobileMenuOpen: external
       {
         isMobileMenuOpen && (
           <div
-            className="fixed inset-0 bg-black/40 backdrop-blur-sm z-[45] md:hidden transition-opacity"
+            className="fixed inset-0 bg-black/40 backdrop-blur-[2px] z-[90] md:hidden transition-all duration-300 pointer-events-auto"
             onClick={toggleMobileMenu}
           />
         )

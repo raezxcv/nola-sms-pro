@@ -5,7 +5,7 @@ import type { Contact } from "../types/Contact";
 import type { BulkMessageHistoryItem } from "../types/Sms";
 import { getBulkMessageHistory, renameBulkMessage, deleteBulkMessage, deleteContact, getDeletedContactIds } from "../utils/storage";
 import { TbLayoutSidebarLeftCollapse, TbLayoutSidebarRightCollapse } from "react-icons/tb";
-import { FiUsers, FiChevronDown, FiEdit2, FiTrash2, FiMoreVertical, FiHome, FiPlus } from "react-icons/fi";
+import { FiUsers, FiChevronDown, FiEdit2, FiTrash2, FiMoreVertical, FiHome, FiPlus, FiX } from "react-icons/fi";
 
 export type ViewTab = 'home' | 'compose' | 'contacts' | 'templates' | 'settings';
 
@@ -18,6 +18,7 @@ interface SidebarProps {
   isCollapsed?: boolean;
   onToggleCollapse?: () => void;
   onSelectBulkMessage?: (message: BulkMessageHistoryItem) => void;
+  onCloseMobile?: () => void;
 }
 
 export const Sidebar: React.FC<SidebarProps> = ({
@@ -28,7 +29,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
   activeBulkMessageId,
   isCollapsed = false,
   onToggleCollapse,
-  onSelectBulkMessage
+  onSelectBulkMessage,
+  onCloseMobile
 }) => {
   const [contacts, setContacts] = useState<Contact[]>([]);
   const [bulkHistory, setBulkHistory] = useState<BulkMessageHistoryItem[]>(() => getBulkMessageHistory());
@@ -252,16 +254,29 @@ export const Sidebar: React.FC<SidebarProps> = ({
             )}
           </div>
 
-          {/* Collapse Toggle (Desktop Only) - Now on the right end */}
-          {!isCollapsed && (
-            <button
-              onClick={onToggleCollapse}
-              className="hidden md:flex p-2 rounded-xl text-gray-400 hover:text-[#2b83fa] hover:bg-[#2b83fa]/10 transition-all active:scale-90"
-              title="Collapse Sidebar"
-            >
-              <TbLayoutSidebarLeftCollapse className="h-5 w-5" />
-            </button>
-          )}
+          <div className="flex items-center gap-1">
+            {/* Mobile Close Button */}
+            {!isCollapsed && onCloseMobile && (
+              <button
+                onClick={onCloseMobile}
+                className="md:hidden flex p-2 rounded-xl text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/10 transition-all active:scale-90"
+                title="Close Menu"
+              >
+                <FiX className="h-5 w-5" />
+              </button>
+            )}
+
+            {/* Collapse Toggle (Desktop Only) - Now on the right end */}
+            {!isCollapsed && (
+              <button
+                onClick={onToggleCollapse}
+                className="hidden md:flex p-2 rounded-xl text-gray-400 hover:text-[#2b83fa] hover:bg-[#2b83fa]/10 transition-all active:scale-90"
+                title="Collapse Sidebar"
+              >
+                <TbLayoutSidebarLeftCollapse className="h-5 w-5" />
+              </button>
+            )}
+          </div>
         </div>
 
         {/* New Message Button */}
