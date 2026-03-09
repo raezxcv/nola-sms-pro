@@ -151,7 +151,7 @@ export const sendSms = async (
     if (data?.status === "error" || data?.status === "failed") {
       return {
         success: false,
-        message: data.message || "SMS sending failed",
+        message: data.message || data.error || "SMS sending failed",
       };
     }
 

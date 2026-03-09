@@ -227,5 +227,6 @@ echo json_encode([
     "message" => $message,
     "sender" => $sender,
     "batch_id" => $batch_id,
-    "response" => $result
+    "response" => $result,
+    "error" => $status != 200 ? ($result['message'] ?? 'SMS sending failed') : null
 ]);
